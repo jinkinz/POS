@@ -96,17 +96,45 @@ Target market: food & beverage businesses in **Malaysia and Singapore** (cafés,
 - Campaigns: WhatsApp / SMS / email blasts to segments
 - Feedback collection (post-payment QR survey), Google review funneling
 
-## 9. HR & Payroll (MY / SG statutory)
+## 9. HR, Staffing & Workforce Management (MY / SG)
 
-- Staff profiles, roles, outlet assignment
-- **Rostering / shift scheduling** with labor-cost preview; shift swap requests
-- Attendance: clock in/out via POS PIN or personal QR, lateness/OT computation
-- **Malaysia payroll**: EPF, SOCSO, EIS, PCB/MTD, HRDF levy; EA form
-- **Singapore payroll**: CPF, SDL, self-help group funds (CDAC/SINDA/MBMF/ECF); IR8A
-- Overtime, public-holiday rates, allowances, claims/reimbursements
-- Tip pooling & service-charge distribution rules
+### 9.1 Staffing & employee lifecycle
+- Staff profiles, roles, grades, multi-outlet assignment; **part-timer / casual worker pool** shared across outlets
+- Recruitment basics: job postings, applicant tracking, interview scheduling
+- **Onboarding / offboarding checklists**, e-contracts with digital signature, uniform & equipment issuance tracking
+- Employee self-service portal / mobile app (payslips, roster, leave, claims in one place)
+- **Certification & compliance tracking with expiry reminders**: food handler course & typhoid vaccination (mandatory in MY), SG WSQ Food Safety Course, halal training
+- **Foreign worker management**: work permit / PLKS / Employment Pass / S Pass expiry tracking, SG foreign worker levy (FWL) & quota/dependency-ratio monitoring, passport expiry alerts
+- Skills matrix / station qualification (who is trained for wok, barista, cashier, expo) — feeds the roster
+- Disciplinary records, warning letters, incident log
+- Staff announcements / noticeboard, SOP documents & training quizzes
+
+### 9.2 Rostering & attendance
+- **Rostering / shift scheduling** with labor-cost preview against forecast sales (demand-based staffing suggestions)
+- Staff availability submission, **open-shift bidding/claiming** for part-timers, shift swap requests with approval
+- Labor-law guardrails: max working hours, OT caps (MY 104 hrs/month), mandatory rest days, break tracking
+- Attendance: clock in/out via POS PIN, personal QR, or selfie/geofenced mobile clock-in; lateness & OT auto-computation
+- Floating staff across outlets with per-outlet attendance costing
+
+### 9.3 E-Leave
+- Leave types: annual, sick/MC, hospitalization, **maternity (98 days MY / 16 weeks SG), paternity, SG childcare leave**, compassionate, marriage, unpaid, replacement leave for public holidays worked
+- **Statutory entitlement auto-computation** by length of service (MY Employment Act / SG Employment Act minimums), pro-ration for joiners/leavers, carry-forward & encashment rules
+- Approval workflow with delegation, team leave calendar, **blackout dates** (e.g., no leave during CNY/Raya rush), min-staffing conflict warnings against the roster
+- MC photo upload & verification; leave balance visible in staff app
+- **Public holiday calendars per MY state** (states differ) and SG, auto-applied to roster, pay rates & leave
+
+### 9.4 E-Claims
+- Expense claims (meal, transport, medical, phone) with receipt photo upload, per-grade limits, approval flow, payout via payroll
+
+### 9.5 Payroll (statutory MY / SG)
+- **Malaysia**: EPF, SOCSO, EIS, PCB/MTD, HRDF levy; EA form, Borang E
+- **Singapore**: CPF, SDL, self-help group funds (CDAC/SINDA/MBMF/ECF); IR8A / AIS submission
+- Hourly part-timer pay auto-calculated from attendance; overtime, public-holiday & rest-day rates, shift allowances
+- Tip pooling & service-charge point distribution rules
+- Commission & incentive schemes driven by POS sales data (per-staff sales, upsell contests, leaderboards)
+- Salary advance / earned wage access (common for F&B crew)
 - Payslip generation; **bank bulk-payment file export** (DuitNow bulk / GIRO)
-- Leave management (annual, MC, unpaid) with approval flow
+- Payroll audit trail, retro-pay adjustments, statutory rate updates
 
 ## 10. Reporting & Analytics
 
