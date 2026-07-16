@@ -1,0 +1,347 @@
+// POS core schema — phase 1 (POS + menu + orders + payments + shifts).
+// Conventions:
+//  - All money as integer cents (sen/cents).
+//  - All ids are UUIDs, client-generatable for offline creation.
+//  - Every tenant-owned row carries companyId; outlet-scoped rows carry outletId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Tenancy ----------
+
+model Company {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  country   Country
+  currency  Currency
+  timezone  String   @default("Asia/Kuala_Lumpur")
+  createdAt DateTime @default(now())
+
+  outlets  Outlet[]
+  staff    Staff[]
+  catalogs Category[]
+  products Product[]
+  modifierGroups ModifierGroup[]
+}
+
+model Outlet {
+  id        String  @id @default(uuid()) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id])
+  name      String
+  address   String?
+  active    Boolean @default(true)
+
+  // Totals configuration (see @pos/shared TotalsConfig)
+  serviceChargeBps     Int     @default(0)
+  taxBps               Int     @default(0)
+  taxInclusive         Boolean @default(false)
+  serviceChargeTaxable Boolean @default(true)
+  cashRounding         CashRounding @default(NONE)
+
+  tables DiningTable[]
+  orders Order[]
+  shifts Shift[]
+
+  @@index([companyId])
+}
+
+enum Country {
+  MY
+  SG
+}
+
+enum Currency {
+  MYR
+  SGD
+}
+
+enum CashRounding {
+  NONE
+  MY_5_SEN
+}
+
+// ---------- Staff (phase 1 minimal; HR module extends later) ----------
+
+model Staff {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @db.Uuid
+  company      Company   @relation(fields: [companyId], references: [id])
+  name         String
+  email        String?   @unique
+  phone        String?
+  role         StaffRole
+  passwordHash String? // back office login
+  pinHash      String? // POS terminal login
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+
+  orders Order[]
+  shifts Shift[]
+
+  @@index([companyId])
+}
+
+enum StaffRole {
+  OWNER
+  MANAGER
+  CASHIER
+  WAITER
+  KITCHEN
+}
+
+// ---------- Catalog ----------
+
+model Category {
+  id        String  @id @default(uuid()) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id])
+  name      String
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
+
+  products Product[]
+
+  @@index([companyId])
+}
+
+model Product {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @db.Uuid
+  company    Company  @relation(fields: [companyId], references: [id])
+  categoryId String?  @db.Uuid
+  category   Category? @relation(fields: [categoryId], references: [id])
+  name       String
+  sku        String?
+  basePriceCents Int
+  imageUrl   String?
+  kitchenStation String? // routing hint for KDS/kitchen printers (phase 2)
+  active     Boolean  @default(true)
+  soldOut    Boolean  @default(false) // the "86" flag, synced in real time
+  createdAt  DateTime @default(now())
+
+  modifierGroups ProductModifierGroup[]
+  orderItems     OrderItem[]
+
+  @@index([companyId, categoryId])
+}
+
+model ModifierGroup {
+  id        String  @id @default(uuid()) @db.Uuid
+  companyId String  @db.Uuid
+  company   Company @relation(fields: [companyId], references: [id])
+  name      String // e.g. "Sugar level", "Add-ons"
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1)
+
+  modifiers Modifier[]
+  products  ProductModifierGroup[]
+
+  @@index([companyId])
+}
+
+model Modifier {
+  id              String        @id @default(uuid()) @db.Uuid
+  groupId         String        @db.Uuid
+  group           ModifierGroup @relation(fields: [groupId], references: [id])
+  name            String // e.g. "Less sugar", "Extra shot"
+  priceDeltaCents Int           @default(0)
+  soldOut         Boolean       @default(false)
+  sortOrder       Int           @default(0)
+
+  @@index([groupId])
+}
+
+model ProductModifierGroup {
+  productId String        @db.Uuid
+  groupId   String        @db.Uuid
+  product   Product       @relation(fields: [productId], references: [id])
+  group     ModifierGroup @relation(fields: [groupId], references: [id])
+  sortOrder Int           @default(0)
+
+  @@id([productId, groupId])
+}
+
+// ---------- Tables ----------
+
+model DiningTable {
+  id       String  @id @default(uuid()) @db.Uuid
+  outletId String  @db.Uuid
+  outlet   Outlet  @relation(fields: [outletId], references: [id])
+  name     String // "T12"
+  zone     String? // "Patio"
+  seats    Int     @default(2)
+  qrToken  String  @unique @default(uuid()) // embedded in the printed QR code
+  active   Boolean @default(true)
+
+  orders Order[]
+
+  @@unique([outletId, name])
+}
+
+// ---------- Orders ----------
+
+model Order {
+  id        String      @id @db.Uuid // client-generated UUID (offline creation)
+  companyId String      @db.Uuid
+  outletId  String      @db.Uuid
+  outlet    Outlet      @relation(fields: [outletId], references: [id])
+  tableId   String?     @db.Uuid
+  table     DiningTable? @relation(fields: [tableId], references: [id])
+  staffId   String?     @db.Uuid
+  staff     Staff?      @relation(fields: [staffId], references: [id])
+
+  orderNo    Int? // per-outlet daily sequence, assigned server-side on sync
+  type       OrderType
+  source     OrderSource
+  status     OrderStatus @default(OPEN)
+  guestCount Int         @default(1)
+  notes      String?
+
+  subtotalCents      Int @default(0)
+  serviceChargeCents Int @default(0)
+  taxCents           Int @default(0)
+  roundingCents      Int @default(0) // MY 5-sen cash rounding adjustment
+  totalCents         Int @default(0)
+
+  openedAt  DateTime  @default(now())
+  closedAt  DateTime?
+  voidReason String?
+
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([outletId, status])
+  @@index([outletId, openedAt])
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  PICKUP
+  DELIVERY
+}
+
+enum OrderSource {
+  POS
+  QR
+  KIOSK
+  AGGREGATOR
+}
+
+enum OrderStatus {
+  OPEN
+  COMPLETED
+  VOIDED
+}
+
+model OrderItem {
+  id        String  @id @db.Uuid // client-generated
+  orderId   String  @db.Uuid
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId String? @db.Uuid
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // Snapshots so historical orders survive menu edits/deletes
+  nameSnapshot   String
+  unitPriceCents Int
+  quantity       Int
+  /// [{groupName, modifierName, priceDeltaCents}]
+  modifiersJson  Json    @default("[]")
+  notes          String?
+
+  status   OrderItemStatus @default(PENDING)
+  courseNo Int             @default(1)
+  station  String?
+
+  voidReason String?
+  createdAt  DateTime @default(now())
+
+  @@index([orderId])
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  VOIDED
+}
+
+// ---------- Payments ----------
+
+model Payment {
+  id      String @id @db.Uuid // client-generated
+  orderId String @db.Uuid
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  method        PaymentMethod
+  amountCents   Int
+  tenderedCents Int? // cash given
+  changeCents   Int?
+  gatewayRef    String? // gateway/terminal transaction reference
+  status        PaymentStatus @default(CAPTURED)
+  paidAt        DateTime      @default(now())
+
+  @@index([orderId])
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  QR_WALLET
+  GIFT_CARD
+  STORED_VALUE
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  CAPTURED
+  REFUNDED
+  FAILED
+}
+
+// ---------- Shifts / cash management ----------
+
+model Shift {
+  id       String @id @default(uuid()) @db.Uuid
+  outletId String @db.Uuid
+  outlet   Outlet @relation(fields: [outletId], references: [id])
+  staffId  String @db.Uuid
+  staff    Staff  @relation(fields: [staffId], references: [id])
+
+  openingFloatCents Int       @default(0)
+  openedAt          DateTime  @default(now())
+  closedAt          DateTime?
+  expectedCashCents Int? // computed at close
+  countedCashCents  Int? // blind count entered by staff
+  notes             String?
+
+  cashMovements CashMovement[]
+
+  @@index([outletId, openedAt])
+}
+
+model CashMovement {
+  id      String   @id @default(uuid()) @db.Uuid
+  shiftId String   @db.Uuid
+  shift   Shift    @relation(fields: [shiftId], references: [id])
+  type    CashMovementType
+  amountCents Int
+  reason  String
+  createdAt DateTime @default(now())
+
+  @@index([shiftId])
+}
+
+enum CashMovementType {
+  CASH_IN
+  CASH_OUT
+}
