@@ -14,7 +14,14 @@ import {
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@pos/db";
 import { AuthUser } from "../auth/decorators";
 import { PrismaService } from "../prisma.service";
-import { AddItemsDto, CreateOrderDto, OrderItemInputDto, PayDto } from "./dto";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
+import {
+  AddItemsDto,
+  CreateOrderDto,
+  ItemsStatusDto,
+  OrderItemInputDto,
+  PayDto,
+} from "./dto";
 
 type Tx = Prisma.TransactionClient;
 
@@ -37,7 +44,10 @@ const ORDER_INCLUDE = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   // ---------- queries ----------
 
@@ -76,7 +86,7 @@ export class OrdersService {
       throw new BadRequestException("Device can only create orders for its own outlet");
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const order = await this.prisma.$transaction(async (tx) => {
       const outlet = await tx.outlet.findFirst({
         where: { id: dto.outletId, companyId: user.companyId },
         include: { company: true },
@@ -132,10 +142,12 @@ export class OrdersService {
         include: ORDER_INCLUDE,
       });
     });
+    this.realtime.emitToOutlet(order.outletId, "order.created", order);
+    return order;
   }
 
   async addItems(orderId: string, dto: AddItemsDto, companyId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const order = await this.prisma.$transaction(async (tx) => {
       const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException("Cannot add items after payment has started");
@@ -155,10 +167,12 @@ export class OrdersService {
       }
       return this.recomputeTotals(tx, orderId);
     });
+    this.realtime.emitToOutlet(order.outletId, "order.updated", order);
+    return order;
   }
 
   async voidItem(orderId: string, itemId: string, reason: string, companyId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const order = await this.prisma.$transaction(async (tx) => {
       const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException("Cannot void items after payment has started");
@@ -172,12 +186,14 @@ export class OrdersService {
       });
       return this.recomputeTotals(tx, orderId);
     });
+    this.realtime.emitToOutlet(order.outletId, "order.updated", order);
+    return order;
   }
 
   async voidOrder(orderId: string, reason: string, companyId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const order = await this.getOpenOrder(tx, orderId, companyId);
-      if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const open = await this.getOpenOrder(tx, orderId, companyId);
+      if (open.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException(
           "Order has captured payments — refund first, then void",
         );
@@ -188,6 +204,44 @@ export class OrdersService {
         include: ORDER_INCLUDE,
       });
     });
+    this.realtime.emitToOutlet(order.outletId, "order.updated", order);
+    return order;
+  }
+
+  /**
+   * Bulk item status change — the KDS "bump" (station done -> READY),
+   * expo "serve" (READY -> SERVED) and "recall" (back to PREPARING).
+   * Works on completed (paid) orders too: pay-first flows still cook after.
+   */
+  async setItemsStatus(orderId: string, dto: ItemsStatusDto, companyId: string) {
+    const order = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.order.findFirst({
+        where: { id: orderId, companyId },
+        include: ORDER_INCLUDE,
+      });
+      if (!existing) throw new NotFoundException("Order not found");
+      if (existing.status === OrderStatus.VOIDED) {
+        throw new ConflictException("Order is VOIDED");
+      }
+      const byId = new Map(existing.items.map((i) => [i.id, i]));
+      for (const itemId of dto.itemIds) {
+        const item = byId.get(itemId);
+        if (!item) throw new NotFoundException(`Item ${itemId} not on this order`);
+        if (item.status === "VOIDED") {
+          throw new ConflictException("Cannot change status of a voided item");
+        }
+      }
+      await tx.orderItem.updateMany({
+        where: { id: { in: dto.itemIds } },
+        data: { status: dto.status },
+      });
+      return tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: ORDER_INCLUDE,
+      });
+    });
+    this.realtime.emitToOutlet(order.outletId, "order.updated", order);
+    return order;
   }
 
   /**
@@ -264,7 +318,9 @@ export class OrdersService {
       return payment.id;
     });
 
-    return this.paymentResult(orderId, paymentId, companyId);
+    const result = await this.paymentResult(orderId, paymentId, companyId);
+    this.realtime.emitToOutlet(result.order.outletId, "order.updated", result.order);
+    return result;
   }
 
   // ---------- internals ----------

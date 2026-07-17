@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
+import { RealtimeGateway } from "../realtime/realtime.gateway";
 
 @Injectable()
 export class MenuService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /** Full menu for one outlet — what POS/QR clients cache locally. */
   async outletMenu(outletId: string, companyId: string) {
@@ -79,6 +83,18 @@ export class MenuService {
       where: { id: productId },
       data: { soldOut },
     });
+    // Products are company-level; tell every outlet's terminals immediately.
+    const outlets = await this.prisma.outlet.findMany({
+      where: { companyId },
+      select: { id: true },
+    });
+    for (const outlet of outlets) {
+      this.realtime.emitToOutlet(outlet.id, "menu.sold_out", {
+        productId: product.id,
+        name: product.name,
+        soldOut: product.soldOut,
+      });
+    }
     return { id: product.id, soldOut: product.soldOut };
   }
 }

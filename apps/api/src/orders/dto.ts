@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -85,6 +86,16 @@ export class AddItemsDto {
   @ValidateNested({ each: true })
   @Type(() => OrderItemInputDto)
   items!: OrderItemInputDto[];
+}
+
+export class ItemsStatusDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsUUID(undefined, { each: true })
+  itemIds!: string[];
+
+  @IsIn(["PENDING", "PREPARING", "READY", "SERVED"])
+  status!: "PENDING" | "PREPARING" | "READY" | "SERVED";
 }
 
 export class VoidDto {

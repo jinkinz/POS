@@ -9,7 +9,13 @@ import {
 } from "@nestjs/common";
 import { OrderStatus, StaffRole } from "@pos/db";
 import { AuthUser, CurrentUser, Roles } from "../auth/decorators";
-import { AddItemsDto, CreateOrderDto, PayDto, VoidDto } from "./dto";
+import {
+  AddItemsDto,
+  CreateOrderDto,
+  ItemsStatusDto,
+  PayDto,
+  VoidDto,
+} from "./dto";
 import { OrdersService } from "./orders.service";
 
 const SELLING_ROLES = [
@@ -51,6 +57,16 @@ export class OrdersController {
     @Body() dto: AddItemsDto,
   ) {
     return this.orders.addItems(id, dto, user.companyId);
+  }
+
+  // Any staff session may move kitchen statuses (KDS bump/serve/recall).
+  @Post("orders/:id/items/status")
+  setItemsStatus(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ItemsStatusDto,
+  ) {
+    return this.orders.setItemsStatus(id, dto, user.companyId);
   }
 
   // Voids are manager-level actions — a cashier hands the terminal over.
