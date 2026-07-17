@@ -21,6 +21,14 @@ export class MenuController {
     return this.menu.outletMenu(outletId, user.companyId);
   }
 
+  @Get("outlets/:outletId/tables")
+  outletTables(
+    @CurrentUser() user: AuthUser,
+    @Param("outletId", ParseUUIDPipe) outletId: string,
+  ) {
+    return this.menu.outletTables(outletId, user.companyId);
+  }
+
   @Roles(StaffRole.OWNER, StaffRole.MANAGER, StaffRole.KITCHEN)
   @Patch("products/:productId/sold-out")
   setSoldOut(

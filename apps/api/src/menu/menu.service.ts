@@ -74,6 +74,23 @@ export class MenuService {
     };
   }
 
+  async outletTables(outletId: string, companyId: string) {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id: outletId, companyId },
+    });
+    if (!outlet) throw new NotFoundException("Outlet not found");
+    const tables = await this.prisma.diningTable.findMany({
+      where: { outletId, active: true },
+      orderBy: [{ zone: "asc" }, { name: "asc" }],
+    });
+    return tables.map((t) => ({
+      id: t.id,
+      name: t.name,
+      zone: t.zone,
+      seats: t.seats,
+    }));
+  }
+
   async setSoldOut(productId: string, companyId: string, soldOut: boolean) {
     const existing = await this.prisma.product.findFirst({
       where: { id: productId, companyId },
