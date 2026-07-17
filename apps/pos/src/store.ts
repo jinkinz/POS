@@ -87,6 +87,7 @@ export async function createOrder(opts: {
       unitPriceCents: line.unitPriceCents,
       quantity: line.quantity,
       modifiersJson: line.modifiers.map((m) => ({
+        id: m.id,
         groupName: m.groupName,
         name: m.name,
         priceDeltaCents: m.priceDeltaCents,
@@ -142,6 +143,7 @@ export async function addItemsToOrder(
         unitPriceCents: line.unitPriceCents,
         quantity: line.quantity,
         modifiersJson: line.modifiers.map((m) => ({
+          id: m.id,
           groupName: m.groupName,
           name: m.name,
           priceDeltaCents: m.priceDeltaCents,

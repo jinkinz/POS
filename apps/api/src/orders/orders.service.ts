@@ -13,6 +13,7 @@ import {
 } from "@pos/shared";
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@pos/db";
 import { AuthUser } from "../auth/decorators";
+import { InventoryService } from "../inventory/inventory.service";
 import { PrismaService } from "../prisma.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import {
@@ -39,10 +40,30 @@ interface ResolvedItem {
   nameSnapshot: string;
   unitPriceCents: number;
   quantity: number;
-  modifiersJson: { groupName: string; name: string; priceDeltaCents: number }[];
+  modifiersJson: {
+    id: string;
+    groupName: string;
+    name: string;
+    priceDeltaCents: number;
+  }[];
   notes: string | null;
   courseNo: number;
   station: string | null;
+}
+
+/** Snapshot rows carry the modifier id so voids can reverse consumption. */
+function toSoldItem(item: {
+  productId: string | null;
+  quantity: number;
+  modifiersJson: unknown;
+}): { productId: string; quantity: number; modifierIds: string[] } | null {
+  if (!item.productId) return null;
+  const mods = (item.modifiersJson as { id?: string }[]) ?? [];
+  return {
+    productId: item.productId,
+    quantity: item.quantity,
+    modifierIds: mods.map((m) => m.id).filter((id): id is string => !!id),
+  };
 }
 
 const ORDER_INCLUDE = {
@@ -55,6 +76,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly inventory: InventoryService,
   ) {}
 
   // ---------- queries ----------
@@ -129,9 +151,22 @@ export class OrdersService {
         update: { counter: { increment: 1 } },
       });
 
+      const orderId = dto.id ?? randomUUID();
+      await this.inventory.applyForItems(
+        tx,
+        outlet.id,
+        resolved.map((r) => ({
+          productId: r.productId,
+          quantity: r.quantity,
+          modifierIds: r.modifiersJson.map((m) => m.id),
+        })),
+        orderId,
+        -1,
+      );
+
       return tx.order.create({
         data: {
-          id: dto.id ?? randomUUID(),
+          id: orderId,
           companyId: outlet.companyId,
           outletId: outlet.id,
           tableId: dto.tableId,
@@ -172,6 +207,17 @@ export class OrdersService {
             orderId,
           })),
         });
+        await this.inventory.applyForItems(
+          tx,
+          order.outletId,
+          fresh.map((r) => ({
+            productId: r.productId,
+            quantity: r.quantity,
+            modifierIds: r.modifiersJson.map((m) => m.id),
+          })),
+          orderId,
+          -1,
+        );
       }
       return this.recomputeTotals(tx, orderId);
     });
@@ -192,6 +238,10 @@ export class OrdersService {
         where: { id: itemId },
         data: { status: "VOIDED", voidReason: reason },
       });
+      const sold = toSoldItem(item);
+      if (sold) {
+        await this.inventory.applyForItems(tx, order.outletId, [sold], orderId, 1);
+      }
       return this.recomputeTotals(tx, orderId);
     });
     this.realtime.emitToOutlet(order.outletId, "order.updated", order);
@@ -206,6 +256,11 @@ export class OrdersService {
           "Order has captured payments — refund first, then void",
         );
       }
+      const sold = open.items
+        .filter((i) => i.status !== "VOIDED")
+        .map(toSoldItem)
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+      await this.inventory.applyForItems(tx, open.outletId, sold, orderId, 1);
       return tx.order.update({
         where: { id: orderId },
         data: { status: OrderStatus.VOIDED, voidReason: reason, closedAt: new Date() },
@@ -388,6 +443,7 @@ export class OrdersService {
           throw new ConflictException(`Modifier "${hit.m.name}" is not available`);
         }
         return {
+          id: hit.m.id,
           groupName: hit.groupName,
           name: hit.m.name,
           priceDeltaCents: hit.m.priceDeltaCents,

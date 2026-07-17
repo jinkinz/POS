@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, getToken, setToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
+import Inventory from "./pages/Inventory";
 import MenuPage from "./pages/Menu";
 import StaffPage from "./pages/Staff";
 import Tables from "./pages/Tables";
@@ -10,6 +11,7 @@ import type { Outlet } from "./types";
 const PAGES = [
   ["dashboard", "📊 Dashboard"],
   ["menu", "🍜 Menu"],
+  ["inventory", "📦 Inventory"],
   ["tables", "🪑 Tables & QR"],
   ["devices", "📱 Devices"],
   ["staff", "👥 Staff"],
@@ -82,6 +84,8 @@ export default function App() {
           <Dashboard outlet={outlet} />
         ) : page === "menu" ? (
           <MenuPage />
+        ) : page === "inventory" ? (
+          <Inventory outlet={outlet} />
         ) : page === "tables" ? (
           <Tables outlet={outlet} />
         ) : page === "devices" ? (

@@ -29,6 +29,7 @@ model Company {
   products Product[]
   modifierGroups ModifierGroup[]
   devices  Device[]
+  ingredients Ingredient[]
 }
 
 model Outlet {
@@ -50,6 +51,8 @@ model Outlet {
   orders  Order[]
   shifts  Shift[]
   devices Device[]
+  stockLevels    OutletIngredient[]
+  stockMovements StockMovement[]
 
   @@index([companyId])
 }
@@ -156,6 +159,7 @@ model Product {
 
   modifierGroups ProductModifierGroup[]
   orderItems     OrderItem[]
+  recipeItems    RecipeItem[]
 
   @@index([companyId, categoryId])
 }
@@ -182,6 +186,8 @@ model Modifier {
   priceDeltaCents Int           @default(0)
   soldOut         Boolean       @default(false)
   sortOrder       Int           @default(0)
+
+  recipeItems ModifierRecipeItem[]
 
   @@index([groupId])
 }
@@ -344,6 +350,95 @@ enum PaymentStatus {
   CAPTURED
   REFUNDED
   FAILED
+}
+
+// ---------- Inventory ----------
+
+// Ingredients are company-level; stock levels are per outlet.
+// Quantities use Decimal(14,3) in the ingredient's base unit (g/ml/pcs).
+model Ingredient {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @db.Uuid
+  company   Company        @relation(fields: [companyId], references: [id])
+  name      String
+  unit      IngredientUnit
+  /// Cost per base unit (e.g. cents per gram), 4dp for cheap bulk goods.
+  costCents Decimal        @default(0) @db.Decimal(12, 4)
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+
+  recipeItems         RecipeItem[]
+  modifierRecipeItems ModifierRecipeItem[]
+  stockLevels         OutletIngredient[]
+  movements           StockMovement[]
+
+  @@index([companyId])
+}
+
+enum IngredientUnit {
+  G
+  ML
+  PCS
+}
+
+model OutletIngredient {
+  outletId        String     @db.Uuid
+  ingredientId    String     @db.Uuid
+  outlet          Outlet     @relation(fields: [outletId], references: [id])
+  ingredient      Ingredient @relation(fields: [ingredientId], references: [id])
+  onHandQty       Decimal    @default(0) @db.Decimal(14, 3)
+  lowThresholdQty Decimal?   @db.Decimal(14, 3)
+
+  @@id([outletId, ingredientId])
+}
+
+// Product BOM: selling one unit of the product consumes these quantities.
+model RecipeItem {
+  productId    String     @db.Uuid
+  ingredientId String     @db.Uuid
+  product      Product    @relation(fields: [productId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  qty          Decimal    @db.Decimal(14, 3)
+
+  @@id([productId, ingredientId])
+}
+
+// Modifier add-on BOM: "Extra egg" consumes 1 egg per unit sold.
+model ModifierRecipeItem {
+  modifierId   String     @db.Uuid
+  ingredientId String     @db.Uuid
+  modifier     Modifier   @relation(fields: [modifierId], references: [id])
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  qty          Decimal    @db.Decimal(14, 3)
+
+  @@id([modifierId, ingredientId])
+}
+
+// Append-only ledger. onHandQty is always the sum of a level's movements
+// (plus its starting zero), so shrinkage investigations can replay history.
+model StockMovement {
+  id           String            @id @default(uuid()) @db.Uuid
+  outletId     String            @db.Uuid
+  ingredientId String            @db.Uuid
+  outlet       Outlet            @relation(fields: [outletId], references: [id])
+  ingredient   Ingredient        @relation(fields: [ingredientId], references: [id])
+  type         StockMovementType
+  qtyDelta     Decimal           @db.Decimal(14, 3)
+  reason       String?
+  refId        String?           @db.Uuid // e.g. the order id for sale deductions
+  staffId      String?           @db.Uuid
+  createdAt    DateTime          @default(now())
+
+  @@index([outletId, ingredientId, createdAt])
+}
+
+enum StockMovementType {
+  PURCHASE
+  SALE_DEDUCT
+  VOID_RETURN
+  ADJUSTMENT
+  WASTAGE
+  STOCKTAKE
 }
 
 // ---------- Shifts / cash management ----------
