@@ -1,12 +1,11 @@
 // Demo seed: a Malaysian kopitiam with SST 6%, 10% service charge, 5-sen
 // cash rounding. Idempotent — safe to run repeatedly.
 import "dotenv/config";
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { PrismaClient } from "@pos/db";
+import { hashSecret } from "../src/auth/hashing";
 
 const prisma = new PrismaClient();
-
-const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 async function main() {
   const existing = await prisma.company.findFirst({
@@ -42,6 +41,8 @@ async function main() {
     },
   });
 
+  // Demo credentials: owner logs into back office with password12345,
+  // PINs 1234 (owner) / 5678 (cashier) unlock POS terminals.
   await prisma.staff.createMany({
     data: [
       {
@@ -49,13 +50,14 @@ async function main() {
         name: "Boss Lim",
         email: "owner@demokopitiam.my",
         role: "OWNER",
-        pinHash: sha256("1234"),
+        passwordHash: await hashSecret("password12345"),
+        pinHash: await hashSecret("1234"),
       },
       {
         companyId: company.id,
         name: "Aisyah",
         role: "CASHIER",
-        pinHash: sha256("5678"),
+        pinHash: await hashSecret("5678"),
       },
     ],
   });

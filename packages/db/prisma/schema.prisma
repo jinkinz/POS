@@ -28,6 +28,7 @@ model Company {
   catalogs Category[]
   products Product[]
   modifierGroups ModifierGroup[]
+  devices  Device[]
 }
 
 model Outlet {
@@ -45,9 +46,10 @@ model Outlet {
   serviceChargeTaxable Boolean @default(true)
   cashRounding         CashRounding @default(NONE)
 
-  tables DiningTable[]
-  orders Order[]
-  shifts Shift[]
+  tables  DiningTable[]
+  orders  Order[]
+  shifts  Shift[]
+  devices Device[]
 
   @@index([companyId])
 }
@@ -94,6 +96,32 @@ enum StaffRole {
   CASHIER
   WAITER
   KITCHEN
+}
+
+// ---------- Devices (POS terminals, kitchen displays, print bridges) ----------
+
+// A registered device holds a long-lived token; staff then unlock it with
+// their personal PIN to get a short-lived session bound to the device's outlet.
+model Device {
+  id        String     @id @default(uuid()) @db.Uuid
+  companyId String     @db.Uuid
+  company   Company    @relation(fields: [companyId], references: [id])
+  outletId  String     @db.Uuid
+  outlet    Outlet     @relation(fields: [outletId], references: [id])
+  name      String // "Counter iPad 1"
+  kind      DeviceKind
+  tokenHash String     @unique // sha256 of the device token, shown once at registration
+  active    Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  lastSeenAt DateTime?
+
+  @@index([companyId])
+}
+
+enum DeviceKind {
+  POS
+  KDS
+  PRINT_BRIDGE
 }
 
 // ---------- Catalog ----------

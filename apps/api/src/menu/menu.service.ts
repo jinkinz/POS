@@ -6,9 +6,9 @@ export class MenuService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Full menu for one outlet — what POS/QR clients cache locally. */
-  async outletMenu(outletId: string) {
-    const outlet = await this.prisma.outlet.findUnique({
-      where: { id: outletId },
+  async outletMenu(outletId: string, companyId: string) {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id: outletId, companyId },
       include: { company: true },
     });
     if (!outlet) throw new NotFoundException("Outlet not found");
@@ -70,7 +70,11 @@ export class MenuService {
     };
   }
 
-  async setSoldOut(productId: string, soldOut: boolean) {
+  async setSoldOut(productId: string, companyId: string, soldOut: boolean) {
+    const existing = await this.prisma.product.findFirst({
+      where: { id: productId, companyId },
+    });
+    if (!existing) throw new NotFoundException("Product not found");
     const product = await this.prisma.product.update({
       where: { id: productId },
       data: { soldOut },

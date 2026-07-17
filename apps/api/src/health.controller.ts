@@ -1,8 +1,10 @@
 import { Controller, Get } from "@nestjs/common";
 import { computeOrderTotals } from "@pos/shared";
+import { Public } from "./auth/decorators";
 
 @Controller("health")
 export class HealthController {
+  @Public()
   @Get()
   health() {
     // Exercise the shared package so a broken workspace link fails loudly here.

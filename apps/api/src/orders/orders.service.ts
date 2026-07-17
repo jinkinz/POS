@@ -12,6 +12,7 @@ import {
   type TotalsConfig,
 } from "@pos/shared";
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@pos/db";
+import { AuthUser } from "../auth/decorators";
 import { PrismaService } from "../prisma.service";
 import { AddItemsDto, CreateOrderDto, OrderItemInputDto, PayDto } from "./dto";
 
@@ -40,18 +41,18 @@ export class OrdersService {
 
   // ---------- queries ----------
 
-  async getOrder(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+  async getOrder(id: string, companyId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, companyId },
       include: ORDER_INCLUDE,
     });
     if (!order) throw new NotFoundException("Order not found");
     return order;
   }
 
-  listOutletOrders(outletId: string, status?: OrderStatus) {
+  listOutletOrders(outletId: string, companyId: string, status?: OrderStatus) {
     return this.prisma.order.findMany({
-      where: { outletId, ...(status ? { status } : {}) },
+      where: { outletId, companyId, ...(status ? { status } : {}) },
       orderBy: { openedAt: "desc" },
       take: 100,
       include: ORDER_INCLUDE,
@@ -60,19 +61,24 @@ export class OrdersService {
 
   // ---------- commands ----------
 
-  async createOrder(dto: CreateOrderDto) {
+  async createOrder(dto: CreateOrderDto, user: AuthUser) {
     if (dto.id) {
       // Offline sync replays are expected; creation is idempotent on id.
-      const existing = await this.prisma.order.findUnique({
-        where: { id: dto.id },
+      const existing = await this.prisma.order.findFirst({
+        where: { id: dto.id, companyId: user.companyId },
         include: ORDER_INCLUDE,
       });
       if (existing) return existing;
     }
 
+    // Device (PIN) sessions are locked to the outlet the device is registered at.
+    if (user.outletId && dto.outletId !== user.outletId) {
+      throw new BadRequestException("Device can only create orders for its own outlet");
+    }
+
     return this.prisma.$transaction(async (tx) => {
-      const outlet = await tx.outlet.findUnique({
-        where: { id: dto.outletId },
+      const outlet = await tx.outlet.findFirst({
+        where: { id: dto.outletId, companyId: user.companyId },
         include: { company: true },
       });
       if (!outlet) throw new NotFoundException("Outlet not found");
@@ -111,7 +117,7 @@ export class OrdersService {
           companyId: outlet.companyId,
           outletId: outlet.id,
           tableId: dto.tableId,
-          staffId: dto.staffId,
+          staffId: dto.staffId ?? user.staffId,
           orderNo: counter.counter,
           type: dto.type,
           source: dto.source,
@@ -128,9 +134,9 @@ export class OrdersService {
     });
   }
 
-  async addItems(orderId: string, dto: AddItemsDto) {
+  async addItems(orderId: string, dto: AddItemsDto, companyId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const order = await this.getOpenOrder(tx, orderId);
+      const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException("Cannot add items after payment has started");
       }
@@ -151,9 +157,9 @@ export class OrdersService {
     });
   }
 
-  async voidItem(orderId: string, itemId: string, reason: string) {
+  async voidItem(orderId: string, itemId: string, reason: string, companyId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const order = await this.getOpenOrder(tx, orderId);
+      const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException("Cannot void items after payment has started");
       }
@@ -168,9 +174,9 @@ export class OrdersService {
     });
   }
 
-  async voidOrder(orderId: string, reason: string) {
+  async voidOrder(orderId: string, reason: string, companyId: string) {
     return this.prisma.$transaction(async (tx) => {
-      const order = await this.getOpenOrder(tx, orderId);
+      const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
         throw new ConflictException(
           "Order has captured payments — refund first, then void",
@@ -190,14 +196,16 @@ export class OrdersService {
    * tender settles the remaining balance (BNM guideline: round the final
    * cash amount, not each payment).
    */
-  async pay(orderId: string, dto: PayDto) {
+  async pay(orderId: string, dto: PayDto, companyId: string) {
     if (dto.id) {
-      const existing = await this.prisma.payment.findUnique({ where: { id: dto.id } });
-      if (existing) return this.paymentResult(orderId, existing.id);
+      const existing = await this.prisma.payment.findFirst({
+        where: { id: dto.id, order: { companyId } },
+      });
+      if (existing) return this.paymentResult(orderId, existing.id, companyId);
     }
 
     const paymentId = await this.prisma.$transaction(async (tx) => {
-      const order = await this.getOpenOrder(tx, orderId);
+      const order = await this.getOpenOrder(tx, orderId, companyId);
       const outlet = await tx.outlet.findUniqueOrThrow({ where: { id: order.outletId } });
 
       const paid = order.payments
@@ -256,20 +264,20 @@ export class OrdersService {
       return payment.id;
     });
 
-    return this.paymentResult(orderId, paymentId);
+    return this.paymentResult(orderId, paymentId, companyId);
   }
 
   // ---------- internals ----------
 
-  private async paymentResult(orderId: string, paymentId: string) {
-    const order = await this.getOrder(orderId);
+  private async paymentResult(orderId: string, paymentId: string, companyId: string) {
+    const order = await this.getOrder(orderId, companyId);
     const payment = order.payments.find((p) => p.id === paymentId);
     return { order, payment };
   }
 
-  private async getOpenOrder(tx: Tx, orderId: string) {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
+  private async getOpenOrder(tx: Tx, orderId: string, companyId: string) {
+    const order = await tx.order.findFirst({
+      where: { id: orderId, companyId },
       include: ORDER_INCLUDE,
     });
     if (!order) throw new NotFoundException("Order not found");
