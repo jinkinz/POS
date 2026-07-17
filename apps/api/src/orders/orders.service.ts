@@ -25,6 +25,14 @@ import {
 
 type Tx = Prisma.TransactionClient;
 
+/** Who/where an order is being created from — staff session or QR guest. */
+export interface OrderContext {
+  companyId: string;
+  /** Set on device and guest sessions: locks creation to this outlet. */
+  outletId?: string;
+  staffId?: string;
+}
+
 interface ResolvedItem {
   id: string;
   productId: string;
@@ -71,7 +79,7 @@ export class OrdersService {
 
   // ---------- commands ----------
 
-  async createOrder(dto: CreateOrderDto, user: AuthUser) {
+  async createOrder(dto: CreateOrderDto, user: OrderContext) {
     if (dto.id) {
       // Offline sync replays are expected; creation is idempotent on id.
       const existing = await this.prisma.order.findFirst({

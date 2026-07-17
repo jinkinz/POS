@@ -12,7 +12,7 @@
 | Cache / pub-sub | Redis (phase 2+) | Fan-out across multiple API instances; in-process events until then |
 | POS terminal | React PWA (Vite) | **Offline-first**: IndexedDB (Dexie) local store + outbox queue, syncs when online; installs to home screen on cheap Android tablets |
 | KDS | React PWA (Vite) | Same offline shell; station-filtered order stream |
-| QR ordering | Next.js | Customer-facing; SSR for instant menu load on slow phones; per-table session tokens |
+| QR ordering | React SPA (Vite) — v1; SSR (Next.js) later if menu-load speed on slow phones demands it | Customer-facing; per-table session tokens exchanged for short-lived guest JWTs |
 | Back office | Next.js | Menu/inventory/HR/reports admin |
 | Printing | Print-bridge agent (Node, on-site) | Talks ESC/POS over LAN/USB to receipt & kitchen printers; receives jobs from API/POS over local network |
 | Payments | Adapter interface per gateway | Start: cash + one gateway covering MY+SG (Fiuu or HitPay → cards, DuitNow QR, PayNow); add Stripe/Adyen/iPay88 as adapters |

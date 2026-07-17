@@ -88,6 +88,8 @@ export class MenuService {
       name: t.name,
       zone: t.zone,
       seats: t.seats,
+      // Staff-only endpoint: the token to encode into the printed table QR.
+      qrToken: t.qrToken,
     }));
   }
 

@@ -35,6 +35,10 @@ export class AuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException("Invalid or expired token");
     }
+    // Customer QR session tokens are only valid on the dedicated /qr routes.
+    if ((user as { kind?: string }).kind === "guest") {
+      throw new ForbiddenException("Guest sessions cannot access staff endpoints");
+    }
     request.user = user;
 
     const roles = this.reflector.getAllAndOverride<StaffRole[]>(ROLES_KEY, [
