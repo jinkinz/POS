@@ -274,6 +274,16 @@ enum OrderItemStatus {
   VOIDED
 }
 
+// Per-outlet daily sequence for human-facing order numbers.
+// Incremented atomically inside the order-create transaction.
+model OrderCounter {
+  outletId String @db.Uuid
+  bizDate  String // YYYY-MM-DD in the outlet's timezone
+  counter  Int    @default(0)
+
+  @@id([outletId, bizDate])
+}
+
 // ---------- Payments ----------
 
 model Payment {
