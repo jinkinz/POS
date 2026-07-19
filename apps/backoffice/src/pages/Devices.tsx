@@ -168,6 +168,7 @@ function NewDeviceDialog({
             <option value="POS">POS terminal</option>
             <option value="KDS">Kitchen display</option>
             <option value="PRINT_BRIDGE">Print bridge</option>
+            <option value="AGGREGATOR">Delivery aggregator</option>
           </select>
         </label>
         {error && <div className="error">{error}</div>}

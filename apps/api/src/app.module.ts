@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AdminModule } from "./admin/admin.module";
+import { AggregatorModule } from "./aggregator/aggregator.module";
 import { AuthModule } from "./auth/auth.module";
 import { CrmModule } from "./crm/crm.module";
 import { EInvoiceModule } from "./einvoice/einvoice.module";
@@ -15,6 +16,7 @@ import { ShiftsModule } from "./shifts/shifts.module";
 @Module({
   imports: [
     AdminModule,
+    AggregatorModule,
     AuthModule,
     CrmModule,
     EInvoiceModule,

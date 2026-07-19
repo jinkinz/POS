@@ -140,6 +140,7 @@ enum DeviceKind {
   POS
   KDS
   PRINT_BRIDGE
+  AGGREGATOR
 }
 
 // ---------- Catalog ----------
@@ -265,6 +266,11 @@ model Order {
   voucherCode        String? // code as entered (promo or personal)
   appliedCampaignId  String? @db.Uuid
 
+  // Delivery-aggregator origin (GrabFood, foodpanda, ...)
+  aggregatorProvider String?
+  externalRef        String? // platform's order id — idempotency key
+  customerName       String?
+
   openedAt  DateTime  @default(now())
   closedAt  DateTime?
   voidReason String?
@@ -273,6 +279,7 @@ model Order {
   payments Payment[]
   gatewayPayments GatewayPayment[]
 
+  @@unique([aggregatorProvider, externalRef])
   @@index([outletId, status])
   @@index([outletId, openedAt])
 }
