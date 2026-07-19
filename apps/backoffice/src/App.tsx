@@ -3,6 +3,7 @@ import { api, getToken, setToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Inventory from "./pages/Inventory";
+import EInvoicePage from "./pages/EInvoice";
 import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
 import Shifts from "./pages/Shifts";
@@ -19,6 +20,7 @@ const PAGES = [
   ["tables", "🪑 Tables & QR"],
   ["devices", "📱 Devices"],
   ["staff", "👥 Staff"],
+  ["einvoice", "🧾 E-Invoice"],
 ] as const;
 
 type PageKey = (typeof PAGES)[number][0];
@@ -98,6 +100,8 @@ export default function App() {
           <Tables outlet={outlet} />
         ) : page === "devices" ? (
           <Devices outlets={outlets} />
+        ) : page === "einvoice" ? (
+          <EInvoicePage outlet={outlet} />
         ) : (
           <StaffPage />
         )}

@@ -28,6 +28,15 @@ model Company {
   loyaltyEarnPerCurrencyUnit Int @default(1)
   loyaltyRedeemCentsPerPoint Int @default(1)
 
+  // Tax/e-invoice profile (LHDN MyInvois for MY; InvoiceNow later for SG)
+  tin            String? // taxpayer identification number
+  brn            String? // business registration number
+  sstNo          String?
+  msicCode       String? // 5-digit MSIC business activity code
+  invoiceAddress String?
+
+  einvoices EInvoice[]
+
   outlets  Outlet[]
   staff    Staff[]
   catalogs Category[]
@@ -531,6 +540,58 @@ enum PointsTxType {
   EARN
   REDEEM
   ADJUST
+}
+
+// ---------- E-invoicing ----------
+
+// A document submitted (or to be submitted) to the tax authority.
+// INDIVIDUAL = buyer-requested invoice for one order;
+// CONSOLIDATED = monthly aggregate of B2C sales not individually invoiced.
+model EInvoice {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @db.Uuid
+  company   Company        @relation(fields: [companyId], references: [id])
+  type      EInvoiceType
+  status    EInvoiceStatus @default(SUBMITTED)
+  provider  String // MOCK | MYINVOIS
+
+  orderId     String?   @unique @db.Uuid // individual invoices
+  periodStart DateTime? // consolidated invoices
+  periodEnd   DateTime?
+
+  subtotalCents Int
+  taxCents      Int
+  totalCents    Int
+  currency      Currency
+  orderCount    Int      @default(1)
+
+  buyerJson Json?
+  docJson   Json // exactly what we submitted — the audit trail
+
+  providerUuid String?
+  longId       String?
+  qrUrl        String?
+  error        String?
+
+  createdAt   DateTime  @default(now())
+  submittedAt DateTime?
+  validatedAt DateTime?
+
+  @@unique([companyId, type, periodStart])
+  @@index([companyId, createdAt])
+}
+
+enum EInvoiceType {
+  INDIVIDUAL
+  CONSOLIDATED
+}
+
+enum EInvoiceStatus {
+  PENDING
+  SUBMITTED
+  VALID
+  INVALID
+  CANCELLED
 }
 
 // ---------- Printing ----------
