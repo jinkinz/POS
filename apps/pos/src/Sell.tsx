@@ -528,6 +528,7 @@ export default function SellScreen({
           orderId={tenderOrderId}
           outlet={menu.outlet}
           online={online}
+          token={session.token}
           onClose={(completed) => {
             setTenderOrderId(null);
             if (completed) {

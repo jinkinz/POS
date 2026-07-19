@@ -13,6 +13,8 @@ async function bootstrap() {
     AppModule,
     new FastifyAdapter(),
   );
+  // Note: the Nest Fastify adapter already parses JSON and
+  // application/x-www-form-urlencoded bodies (gateway webhooks use the latter).
   app.setGlobalPrefix("api");
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),

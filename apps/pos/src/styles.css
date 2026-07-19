@@ -448,6 +448,24 @@ header {
   padding: 20px 0;
 }
 
+.gateway-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.gateway-qr {
+  width: 240px;
+  height: 240px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px;
+}
+.dim-note {
+  color: var(--muted);
+  font-size: 14px;
+}
+
 .toast {
   position: fixed;
   bottom: 24px;

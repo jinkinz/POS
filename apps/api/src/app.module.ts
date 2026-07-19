@@ -5,6 +5,7 @@ import { InventoryModule } from "./inventory/inventory.module";
 import { HealthController } from "./health.controller";
 import { MenuModule } from "./menu/menu.module";
 import { OrdersModule } from "./orders/orders.module";
+import { PaymentsModule } from "./payments/payments.module";
 import { QrModule } from "./qr/qr.module";
 
 @Module({
@@ -14,6 +15,7 @@ import { QrModule } from "./qr/qr.module";
     InventoryModule,
     MenuModule,
     OrdersModule,
+    PaymentsModule,
     QrModule,
   ],
   controllers: [HealthController],

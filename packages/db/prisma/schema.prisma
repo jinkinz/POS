@@ -250,6 +250,7 @@ model Order {
 
   items    OrderItem[]
   payments Payment[]
+  gatewayPayments GatewayPayment[]
 
   @@index([outletId, status])
   @@index([outletId, openedAt])
@@ -439,6 +440,39 @@ enum StockMovementType {
   ADJUSTMENT
   WASTAGE
   STOCKTAKE
+}
+
+// A payment intent at an external gateway (dynamic QR / checkout). The
+// customer-facing money state; a successful one produces a Payment row.
+model GatewayPayment {
+  id          String  @id @default(uuid()) @db.Uuid
+  companyId   String  @db.Uuid
+  outletId    String  @db.Uuid
+  orderId     String  @db.Uuid
+  order       Order   @relation(fields: [orderId], references: [id])
+  provider    String // MOCK | HITPAY | FIUU | ...
+  providerRef String? // the gateway's own id, unique per provider
+  amountCents Int
+  currency    Currency
+  status      GatewayPaymentStatus @default(PENDING)
+  qrData      String? // payload to render as a QR code
+  checkoutUrl String?
+  failReason  String?
+  paymentId   String?  @db.Uuid // the Payment row created on success
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider, providerRef])
+  @@index([orderId])
+}
+
+enum GatewayPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELED
 }
 
 // ---------- Shifts / cash management ----------
