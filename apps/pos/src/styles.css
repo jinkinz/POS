@@ -465,6 +465,11 @@ header {
   color: var(--muted);
   font-size: 14px;
 }
+.shift-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
 .toast {
   position: fixed;

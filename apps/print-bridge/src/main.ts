@@ -6,7 +6,7 @@
 //      PRINTERS_CONFIG (default ./printers.json)
 import { readFileSync } from "node:fs";
 import { io } from "socket.io-client";
-import { renderKitchen, renderReceipt } from "./render";
+import { renderKitchen, renderReceipt, renderZReport } from "./render";
 import { BridgeConfig, send } from "./printers";
 
 const API_URL = process.env.API_URL ?? "http://localhost:3000";
@@ -15,7 +15,7 @@ const CONFIG_PATH = process.env.PRINTERS_CONFIG ?? "./printers.json";
 
 interface PrintJob {
   id: string;
-  type: "RECEIPT" | "KITCHEN";
+  type: "RECEIPT" | "KITCHEN" | "Z_REPORT";
   station: string | null;
   payload: never;
 }
@@ -62,13 +62,17 @@ async function main() {
     inFlight.add(job.id);
     try {
       const target =
-        job.type === "RECEIPT"
-          ? (config.receipt ?? { type: "console" as const })
-          : (config.stations?.[job.station ?? "kitchen"] ??
+        job.type === "KITCHEN"
+          ? (config.stations?.[job.station ?? "kitchen"] ??
             config.stations?.kitchen ??
-            config.receipt ?? { type: "console" as const });
+            config.receipt ?? { type: "console" as const })
+          : (config.receipt ?? { type: "console" as const });
       const data =
-        job.type === "RECEIPT" ? renderReceipt(job.payload) : renderKitchen(job.payload);
+        job.type === "RECEIPT"
+          ? renderReceipt(job.payload)
+          : job.type === "Z_REPORT"
+            ? renderZReport(job.payload)
+            : renderKitchen(job.payload);
       await send(target, data);
       await api("POST", `/bridge/jobs/${job.id}/ack`, { ok: true }, session.token);
       console.log(`printed ${job.type}${job.station ? `/${job.station}` : ""} ${job.id}`);

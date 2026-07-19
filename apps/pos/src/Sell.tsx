@@ -12,6 +12,7 @@ import {
   remainingCents,
   totalsConfig,
 } from "./store";
+import ShiftDialog from "./Shift";
 import { sync } from "./sync";
 import TenderDialog from "./Tender";
 import type {
@@ -45,6 +46,7 @@ export default function SellScreen({
   const [showOrders, setShowOrders] = useState(false);
   const [showTables, setShowTables] = useState(false);
   const [tenderOrderId, setTenderOrderId] = useState<string | null>(null);
+  const [showShift, setShowShift] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [pendingOps, setPendingOps] = useState(0);
   const [toast, setToast] = useState("");
@@ -241,6 +243,9 @@ export default function SellScreen({
         <div className="header-actions">
           <button className="btn" onClick={() => setShowOrders(true)}>
             Orders ({openOrders.length})
+          </button>
+          <button className="btn" disabled={!online} onClick={() => setShowShift(true)}>
+            💰
           </button>
           <button className="btn" onClick={onLock}>
             🔒
@@ -536,6 +541,14 @@ export default function SellScreen({
               say("Payment complete");
             }
           }}
+        />
+      )}
+
+      {showShift && (
+        <ShiftDialog
+          session={session}
+          currency={currency}
+          onClose={() => setShowShift(false)}
         />
       )}
 

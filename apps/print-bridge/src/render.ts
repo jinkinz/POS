@@ -47,6 +47,32 @@ export interface KitchenPayload {
   }[];
 }
 
+export interface ZReportPayload {
+  kind: "zreport";
+  shiftId: string;
+  reportKind?: "X" | "Z";
+  kindLabel?: string;
+  outletName: string;
+  staffName: string;
+  openedAt: string;
+  closedAt: string | null;
+  currency: "MYR" | "SGD";
+  payments: { method: string; amountCents: number; count: number }[];
+  completedOrders: number;
+  salesCents: number;
+  voidedOrders: number;
+  cash: {
+    openingFloatCents: number;
+    cashSalesCents: number;
+    cashInCents: number;
+    cashOutCents: number;
+    expectedCents: number;
+    countedCents: number | null;
+    varianceCents: number | null;
+  };
+  movements: { type: string; amountCents: number; reason: string; at: string }[];
+}
+
 function money(cents: number, currency: "MYR" | "SGD"): string {
   const symbol = currency === "MYR" ? "RM" : "S$";
   const sign = cents < 0 ? "-" : "";
@@ -92,6 +118,59 @@ export function renderReceipt(p: ReceiptPayload): Buffer {
 
   e.line("-".repeat(WIDTH));
   e.align("center").line("Thank you! Terima kasih!").feed(3).cut();
+  return e.build();
+}
+
+export function renderZReport(p: ZReportPayload & { kind_?: string }): Buffer {
+  const e = new EscPos().init();
+  const fmt = (c: number) => money(c, p.currency);
+  const label = p.closedAt ? "Z REPORT" : "X REPORT";
+
+  e.align("center").size(2).bold(true).line(label).bold(false).size(1);
+  e.line(p.outletName);
+  e.align("left").line("-".repeat(WIDTH));
+  e.line(`Staff: ${p.staffName}`);
+  e.line(`Open : ${new Date(p.openedAt).toLocaleString("en-MY")}`);
+  if (p.closedAt) e.line(`Close: ${new Date(p.closedAt).toLocaleString("en-MY")}`);
+  e.line("-".repeat(WIDTH));
+
+  e.bold(true).line("SALES").bold(false);
+  e.line(padLine(`Orders completed`, String(p.completedOrders), WIDTH));
+  e.line(padLine(`Orders voided`, String(p.voidedOrders), WIDTH));
+  e.line(padLine(`Total sales`, fmt(p.salesCents), WIDTH));
+  for (const pay of p.payments) {
+    e.line(
+      padLine(`  ${pay.method.replace("_", " ")} (${pay.count})`, fmt(pay.amountCents), WIDTH),
+    );
+  }
+  e.line("-".repeat(WIDTH));
+
+  e.bold(true).line("CASH DRAWER").bold(false);
+  e.line(padLine("Opening float", fmt(p.cash.openingFloatCents), WIDTH));
+  e.line(padLine("Cash sales", fmt(p.cash.cashSalesCents), WIDTH));
+  e.line(padLine("Cash in", fmt(p.cash.cashInCents), WIDTH));
+  e.line(padLine("Cash out", fmt(-p.cash.cashOutCents), WIDTH));
+  e.bold(true).line(padLine("Expected", fmt(p.cash.expectedCents), WIDTH)).bold(false);
+  if (p.cash.countedCents != null) {
+    e.line(padLine("Counted", fmt(p.cash.countedCents), WIDTH));
+    e.bold(true)
+      .line(padLine("VARIANCE", fmt(p.cash.varianceCents ?? 0), WIDTH))
+      .bold(false);
+  }
+
+  if (p.movements.length > 0) {
+    e.line("-".repeat(WIDTH));
+    for (const m of p.movements) {
+      e.line(
+        padLine(
+          `${m.type === "CASH_IN" ? "+" : "-"} ${m.reason}`.slice(0, WIDTH - 10),
+          fmt(m.amountCents),
+          WIDTH,
+        ),
+      );
+    }
+  }
+  e.feed(3).cut();
   return e.build();
 }
 

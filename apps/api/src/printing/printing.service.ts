@@ -204,6 +204,18 @@ export class PrintingService {
     return jobs;
   }
 
+  /** End-of-shift Z-report (or X-report snapshot) to the receipt printer. */
+  zReportJob(companyId: string, outletId: string, report: unknown) {
+    return this.createJob({
+      companyId,
+      outletId,
+      orderId: null,
+      type: PrintJobType.Z_REPORT,
+      station: null,
+      payload: { kind: "zreport", ...(report as object) },
+    });
+  }
+
   private async createJob(data: {
     companyId: string;
     outletId: string;

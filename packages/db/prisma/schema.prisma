@@ -497,6 +497,7 @@ model PrintJob {
 enum PrintJobType {
   RECEIPT
   KITCHEN
+  Z_REPORT
 }
 
 enum PrintJobStatus {
