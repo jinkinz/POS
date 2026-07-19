@@ -128,6 +128,33 @@ export class AdminService {
     return { ok: true };
   }
 
+  // ---------- company settings ----------
+
+  async getCompany(companyId: string) {
+    const c = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+    return {
+      id: c.id,
+      name: c.name,
+      country: c.country,
+      currency: c.currency,
+      timezone: c.timezone,
+      loyaltyEarnPerCurrencyUnit: c.loyaltyEarnPerCurrencyUnit,
+      loyaltyRedeemCentsPerPoint: c.loyaltyRedeemCentsPerPoint,
+    };
+  }
+
+  async updateCompany(
+    companyId: string,
+    dto: {
+      name?: string;
+      loyaltyEarnPerCurrencyUnit?: number;
+      loyaltyRedeemCentsPerPoint?: number;
+    },
+  ) {
+    await this.prisma.company.update({ where: { id: companyId }, data: { ...dto } });
+    return this.getCompany(companyId);
+  }
+
   // ---------- outlets & tables ----------
 
   listOutlets(companyId: string) {

@@ -7,6 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import EInvoicePage from "./pages/EInvoice";
 import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
+import SettingsPage from "./pages/Settings";
 import Shifts from "./pages/Shifts";
 import StaffPage from "./pages/Staff";
 import Tables from "./pages/Tables";
@@ -23,6 +24,7 @@ const PAGES = [
   ["devices", "📱 Devices"],
   ["staff", "👥 Staff"],
   ["einvoice", "🧾 E-Invoice"],
+  ["settings", "⚙️ Settings"],
 ] as const;
 
 type PageKey = (typeof PAGES)[number][0];
@@ -106,6 +108,13 @@ export default function App() {
           <Devices outlets={outlets} />
         ) : page === "einvoice" ? (
           <EInvoicePage outlet={outlet} />
+        ) : page === "settings" ? (
+          <SettingsPage
+            outlet={outlet}
+            onChanged={() =>
+              void api<Outlet[]>("GET", "/admin/outlets").then(setOutlets)
+            }
+          />
         ) : (
           <StaffPage />
         )}

@@ -20,6 +20,7 @@ import {
   CreateProductDto,
   CreateTableDto,
   UpdateCategoryDto,
+  UpdateCompanyDto,
   UpdateModifierDto,
   UpdateModifierGroupDto,
   UpdateOutletDto,
@@ -118,6 +119,17 @@ export class AdminController {
     @Param("groupId", ParseUUIDPipe) groupId: string,
   ) {
     return this.admin.detachGroup(user.companyId, productId, groupId);
+  }
+
+  // company settings
+  @Get("company")
+  getCompany(@CurrentUser() user: AuthUser) {
+    return this.admin.getCompany(user.companyId);
+  }
+
+  @Patch("company")
+  updateCompany(@CurrentUser() user: AuthUser, @Body() dto: UpdateCompanyDto) {
+    return this.admin.updateCompany(user.companyId, dto);
   }
 
   // outlets & tables

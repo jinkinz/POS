@@ -232,6 +232,25 @@ export class UpdateStaffDto {
   password?: string;
 }
 
+export class UpdateCompanyDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  name?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  loyaltyEarnPerCurrencyUnit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  loyaltyRedeemCentsPerPoint?: number;
+}
+
 export class UpdateOutletDto {
   @IsOptional()
   @IsString()
