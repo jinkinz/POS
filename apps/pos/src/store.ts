@@ -51,6 +51,7 @@ export async function createOrder(opts: {
   tableId?: string;
   guestCount?: number;
   staffId: string;
+  memberId?: string;
   lines: CartLine[];
 }): Promise<LocalOrder> {
   const id = crypto.randomUUID();
@@ -72,6 +73,7 @@ export async function createOrder(opts: {
     source: "POS",
     status: "OPEN",
     tableId: opts.tableId ?? null,
+    memberId: opts.memberId ?? null,
     guestCount: opts.guestCount ?? 1,
     notes: null,
     subtotalCents: totals.subtotalCents,
@@ -113,6 +115,7 @@ export async function createOrder(opts: {
       tableId: opts.tableId,
       guestCount: opts.guestCount ?? 1,
       staffId: opts.staffId,
+      memberId: opts.memberId,
       items: items.map(({ id: itemId, line }) => ({
         id: itemId,
         productId: line.productId,

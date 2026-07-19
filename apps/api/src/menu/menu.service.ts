@@ -47,6 +47,8 @@ export class MenuService {
         taxInclusive: outlet.taxInclusive,
         serviceChargeTaxable: outlet.serviceChargeTaxable,
         cashRounding: outlet.cashRounding,
+        loyaltyEarnPerCurrencyUnit: outlet.company.loyaltyEarnPerCurrencyUnit,
+        loyaltyRedeemCentsPerPoint: outlet.company.loyaltyRedeemCentsPerPoint,
       },
       categories: categories.map((c) => ({
         id: c.id,

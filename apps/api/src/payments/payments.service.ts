@@ -10,6 +10,7 @@ import {
   PaymentMethod,
   PaymentStatus,
 } from "@pos/db";
+import { LoyaltyService } from "../crm/loyalty.service";
 import { PrismaService } from "../prisma.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import { HitPayAdapter } from "./hitpay.adapter";
@@ -23,6 +24,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly loyalty: LoyaltyService,
   ) {
     const isProd = process.env.NODE_ENV === "production";
     const mockEnabled = process.env.MOCK_GATEWAY_ENABLED
@@ -217,6 +219,9 @@ export class PaymentsService {
         orderId: result.gp.orderId,
         status: result.gp.status,
       });
+      if (order.status === "COMPLETED") {
+        await this.loyalty.awardForOrder(order.id); // no-op without a member
+      }
     }
     return { ok: true, status: result.gp.status };
   }

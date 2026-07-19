@@ -5,7 +5,7 @@ import { applyCashRounding, formatCents } from "@pos/shared";
 import { api } from "./api";
 import { db } from "./db";
 import { applyServerOrder, capturedCents, payOrder, remainingCents } from "./store";
-import type { Order, OutletConfig } from "./types";
+import type { MemberSummary, Order, OutletConfig } from "./types";
 
 type Method = "CASH" | "CARD" | "QR_WALLET";
 
@@ -152,6 +152,17 @@ export default function TenderDialog({
           ))}
         </div>
 
+        {order.memberId && online && method !== "QR_WALLET" && (
+          <RedeemPane
+            orderId={orderId}
+            memberId={order.memberId}
+            outlet={outlet}
+            token={token}
+            remaining={remaining}
+            fmt={fmt}
+          />
+        )}
+
         {method === "QR_WALLET" && (
           <GatewayPane orderId={orderId} token={token} fmt={fmt} />
         )}
@@ -208,6 +219,75 @@ export default function TenderDialog({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Pay part (or all) of the bill with the attached member's points. */
+function RedeemPane({
+  orderId,
+  memberId,
+  outlet,
+  token,
+  remaining,
+  fmt,
+}: {
+  orderId: string;
+  memberId: string;
+  outlet: OutletConfig;
+  token: string;
+  remaining: number;
+  fmt: (c: number) => string;
+}) {
+  const [member, setMember] = useState<MemberSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    void api<MemberSummary>("GET", `/members/${memberId}`, undefined, token)
+      .then(setMember)
+      .catch(() => {});
+  }, [memberId, token]);
+
+  if (!member || member.pointsBalance <= 0) return null;
+  const rate = outlet.loyaltyRedeemCentsPerPoint;
+  const maxPoints = Math.min(member.pointsBalance, Math.floor(remaining / rate));
+  if (maxPoints <= 0) return null;
+
+  const redeem = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await api<Order>(
+        "POST",
+        `/orders/${orderId}/redeem-points`,
+        { points: maxPoints },
+        token,
+      );
+      await applyServerOrder(updated);
+      const fresh = await api<MemberSummary>(
+        "GET",
+        `/members/${memberId}`,
+        undefined,
+        token,
+      );
+      setMember(fresh);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Redemption failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="redeem-row">
+      <span className="dim-note">
+        ⭐ {member.name ?? member.phone}: {member.pointsBalance} pts
+      </span>
+      <button className="btn" disabled={busy} onClick={() => void redeem()}>
+        Redeem {maxPoints} pts (−{fmt(maxPoints * rate)})
+      </button>
+      {error && <div className="error">{error}</div>}
     </div>
   );
 }

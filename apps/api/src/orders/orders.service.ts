@@ -13,6 +13,7 @@ import {
 } from "@pos/shared";
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@pos/db";
 import { AuthUser } from "../auth/decorators";
+import { LoyaltyService } from "../crm/loyalty.service";
 import { InventoryService } from "../inventory/inventory.service";
 import { PrintingService } from "../printing/printing.service";
 import { PrismaService } from "../prisma.service";
@@ -79,6 +80,7 @@ export class OrdersService {
     private readonly realtime: RealtimeGateway,
     private readonly inventory: InventoryService,
     private readonly printing: PrintingService,
+    private readonly loyalty: LoyaltyService,
   ) {}
 
   // ---------- queries ----------
@@ -131,6 +133,12 @@ export class OrdersService {
         });
         if (!table) throw new BadRequestException("Table does not belong to outlet");
       }
+      if (dto.memberId) {
+        const member = await tx.member.findFirst({
+          where: { id: dto.memberId, companyId: user.companyId, active: true },
+        });
+        if (!member) throw new BadRequestException("Member not found");
+      }
 
       const resolved = await this.resolveItems(tx, outlet.companyId, dto.items);
       const totals = computeOrderTotals(
@@ -173,6 +181,7 @@ export class OrdersService {
           outletId: outlet.id,
           tableId: dto.tableId,
           staffId: dto.staffId ?? user.staffId,
+          memberId: dto.memberId,
           orderNo: counter.counter,
           type: dto.type,
           source: dto.source,
@@ -392,6 +401,9 @@ export class OrdersService {
 
     const result = await this.paymentResult(orderId, paymentId, companyId);
     this.realtime.emitToOutlet(result.order.outletId, "order.updated", result.order);
+    if (result.order.status === OrderStatus.COMPLETED) {
+      await this.loyalty.awardForOrder(orderId); // no-op without a member
+    }
     return result;
   }
 

@@ -23,6 +23,11 @@ model Company {
   timezone  String   @default("Asia/Kuala_Lumpur")
   createdAt DateTime @default(now())
 
+  // Loyalty configuration: earn N points per whole RM/SGD spent,
+  // each point redeems for M cents.
+  loyaltyEarnPerCurrencyUnit Int @default(1)
+  loyaltyRedeemCentsPerPoint Int @default(1)
+
   outlets  Outlet[]
   staff    Staff[]
   catalogs Category[]
@@ -30,6 +35,7 @@ model Company {
   modifierGroups ModifierGroup[]
   devices  Device[]
   ingredients Ingredient[]
+  members  Member[]
 }
 
 model Outlet {
@@ -230,6 +236,8 @@ model Order {
   table     DiningTable? @relation(fields: [tableId], references: [id])
   staffId   String?     @db.Uuid
   staff     Staff?      @relation(fields: [staffId], references: [id])
+  memberId  String?     @db.Uuid
+  member    Member?     @relation(fields: [memberId], references: [id])
 
   orderNo    Int? // per-outlet daily sequence, assigned server-side on sync
   type       OrderType
@@ -343,6 +351,7 @@ enum PaymentMethod {
   QR_WALLET
   GIFT_CARD
   STORED_VALUE
+  POINTS
   OTHER
 }
 
@@ -473,6 +482,55 @@ enum GatewayPaymentStatus {
   FAILED
   EXPIRED
   CANCELED
+}
+
+// ---------- CRM / loyalty ----------
+
+// Phone-number-first membership (how MY/SG F&B actually signs people up).
+model Member {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  company   Company  @relation(fields: [companyId], references: [id])
+  phone     String
+  name      String?
+  email     String?
+  active    Boolean  @default(true)
+  /// PDPA: recorded when the member agreed to join the program.
+  consentAt DateTime @default(now())
+
+  pointsBalance      Int       @default(0)
+  lifetimeSpendCents Int       @default(0)
+  visits             Int       @default(0)
+  lastVisitAt        DateTime?
+  createdAt          DateTime  @default(now())
+
+  transactions PointsTransaction[]
+  orders       Order[]
+
+  @@unique([companyId, phone])
+  @@index([companyId, name])
+}
+
+// Signed ledger — pointsBalance is always the sum of these.
+model PointsTransaction {
+  id       String       @id @default(uuid()) @db.Uuid
+  memberId String       @db.Uuid
+  member   Member       @relation(fields: [memberId], references: [id])
+  type     PointsTxType
+  points   Int // positive earn/adjust-up, negative redeem/adjust-down
+  orderId  String?      @db.Uuid
+  reason   String?
+  createdAt DateTime    @default(now())
+
+  @@index([memberId, createdAt])
+  // At most one automatic earn per order (idempotent settlement hooks).
+  @@unique([orderId, type])
+}
+
+enum PointsTxType {
+  EARN
+  REDEEM
+  ADJUST
 }
 
 // ---------- Printing ----------

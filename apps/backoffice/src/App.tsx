@@ -3,6 +3,7 @@ import { api, getToken, setToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Inventory from "./pages/Inventory";
+import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
 import Shifts from "./pages/Shifts";
 import StaffPage from "./pages/Staff";
@@ -12,6 +13,7 @@ import type { Outlet } from "./types";
 const PAGES = [
   ["dashboard", "📊 Dashboard"],
   ["shifts", "💰 Shifts"],
+  ["members", "🎁 Members"],
   ["menu", "🍜 Menu"],
   ["inventory", "📦 Inventory"],
   ["tables", "🪑 Tables & QR"],
@@ -86,6 +88,8 @@ export default function App() {
           <Dashboard outlet={outlet} />
         ) : page === "shifts" ? (
           <Shifts outlet={outlet} />
+        ) : page === "members" ? (
+          <Members />
         ) : page === "menu" ? (
           <MenuPage />
         ) : page === "inventory" ? (

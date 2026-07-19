@@ -66,6 +66,10 @@ export class CreateOrderDto {
   staffId?: string;
 
   @IsOptional()
+  @IsUUID()
+  memberId?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   guestCount?: number;

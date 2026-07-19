@@ -12,6 +12,7 @@ import {
   remainingCents,
   totalsConfig,
 } from "./store";
+import MemberDialog from "./Member";
 import ShiftDialog from "./Shift";
 import { sync } from "./sync";
 import TenderDialog from "./Tender";
@@ -20,6 +21,7 @@ import type {
   ChosenModifier,
   DiningTable,
   LocalOrder,
+  MemberSummary,
   MenuData,
   Order,
   OrderType,
@@ -47,6 +49,8 @@ export default function SellScreen({
   const [showTables, setShowTables] = useState(false);
   const [tenderOrderId, setTenderOrderId] = useState<string | null>(null);
   const [showShift, setShowShift] = useState(false);
+  const [member, setMember] = useState<MemberSummary | null>(null);
+  const [showMember, setShowMember] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [pendingOps, setPendingOps] = useState(0);
   const [toast, setToast] = useState("");
@@ -204,10 +208,12 @@ export default function SellScreen({
       type: orderType,
       tableId: orderType === "DINE_IN" ? tableId : undefined,
       staffId: session.staff.id,
+      memberId: member?.id,
       lines: cart,
     });
     setCart([]);
     setTableId(undefined);
+    setMember(null);
     if (thenPay) setTenderOrderId(order.id);
     else say(`Sent ${orderLabel(order)}`);
   };
@@ -285,6 +291,9 @@ export default function SellScreen({
           {activeOrder ? (
             <div className="cart-head">
               <b>Order {orderLabel(activeOrder)}</b>
+              <button className="btn" onClick={() => setShowMember(true)}>
+                {activeOrder.memberId ? "⭐" : "☆"}
+              </button>
               <button
                 className="btn link"
                 onClick={() => {
@@ -315,6 +324,9 @@ export default function SellScreen({
                     : "Select table"}
                 </button>
               )}
+              <button className="btn" onClick={() => setShowMember(true)}>
+                {member ? `⭐ ${member.name ?? member.phone}` : "☆ Member"}
+              </button>
             </div>
           )}
 
@@ -549,6 +561,29 @@ export default function SellScreen({
           session={session}
           currency={currency}
           onClose={() => setShowShift(false)}
+        />
+      )}
+
+      {showMember && (
+        <MemberDialog
+          token={session.token}
+          online={online}
+          onSelect={async (m) => {
+            if (activeOrder) {
+              const updated = await api<Order>(
+                "POST",
+                `/orders/${activeOrder.id}/member`,
+                { memberId: m.id },
+                session.token,
+              );
+              await applyServerOrder(updated);
+              say(`Member attached to ${orderLabel(activeOrder)}`);
+            } else {
+              setMember(m);
+            }
+            setShowMember(false);
+          }}
+          onClose={() => setShowMember(false)}
         />
       )}
 

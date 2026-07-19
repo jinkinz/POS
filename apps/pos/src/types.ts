@@ -20,6 +20,16 @@ export interface OutletConfig {
   taxInclusive: boolean;
   serviceChargeTaxable: boolean;
   cashRounding: CashRoundingMode;
+  loyaltyEarnPerCurrencyUnit: number;
+  loyaltyRedeemCentsPerPoint: number;
+}
+
+export interface MemberSummary {
+  id: string;
+  phone: string;
+  name: string | null;
+  pointsBalance: number;
+  visits: number;
 }
 
 export interface Modifier {
@@ -114,6 +124,7 @@ export interface Order {
   source: string;
   status: "OPEN" | "COMPLETED" | "VOIDED";
   tableId: string | null;
+  memberId?: string | null;
   guestCount: number;
   notes: string | null;
   subtotalCents: number;

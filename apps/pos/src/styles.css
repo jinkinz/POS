@@ -470,6 +470,22 @@ header {
   flex-direction: column;
   gap: 2px;
 }
+.member-card {
+  background: var(--panel2);
+  border: 1px solid #33404d;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.redeem-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 
 .toast {
   position: fixed;

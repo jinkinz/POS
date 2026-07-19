@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AdminModule } from "./admin/admin.module";
 import { AuthModule } from "./auth/auth.module";
+import { CrmModule } from "./crm/crm.module";
 import { InventoryModule } from "./inventory/inventory.module";
 import { HealthController } from "./health.controller";
 import { MenuModule } from "./menu/menu.module";
@@ -14,6 +15,7 @@ import { ShiftsModule } from "./shifts/shifts.module";
   imports: [
     AdminModule,
     AuthModule,
+    CrmModule,
     InventoryModule,
     MenuModule,
     OrdersModule,
