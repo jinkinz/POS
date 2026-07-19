@@ -185,6 +185,16 @@ header {
   gap: 8px;
   padding: 10px 14px;
   overflow-x: auto;
+  align-items: center;
+}
+.scan-box {
+  background: var(--panel);
+  border: 1px solid #33404d;
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px 12px;
+  font-size: 15px;
+  min-width: 190px;
 }
 .grid {
   flex: 1;

@@ -77,6 +77,12 @@ export class AdminService {
     if (dto.categoryId) {
       await this.mustOwn(this.prisma.category, dto.categoryId, companyId, "Category");
     }
+    if (dto.consignorId) {
+      const consignor = await this.prisma.consignor.findFirst({
+        where: { id: dto.consignorId, companyId },
+      });
+      if (!consignor) throw new NotFoundException("Consignor not found");
+    }
     return this.prisma.product.update({ where: { id }, data: { ...dto } });
   }
 

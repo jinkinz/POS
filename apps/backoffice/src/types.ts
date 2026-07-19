@@ -40,7 +40,19 @@ export interface Product {
   sku: string | null;
   active: boolean;
   soldOut: boolean;
+  trackStock: boolean;
+  consignorId: string | null;
   modifierGroupIds: string[];
+}
+
+export interface Consignor {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  commissionBps: number;
+  active: boolean;
+  productCount?: number;
 }
 
 export interface Modifier {

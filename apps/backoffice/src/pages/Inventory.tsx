@@ -30,7 +30,7 @@ interface RecipeLine {
 const UNITS = ["G", "ML", "PCS"];
 
 export default function Inventory({ outlet }: { outlet: Outlet }) {
-  const [tab, setTab] = useState<"stock" | "recipes" | "movements">("stock");
+  const [tab, setTab] = useState<"stock" | "retail" | "recipes" | "movements">("stock");
   const [stock, setStock] = useState<StockRow[]>([]);
   const [counting, setCounting] = useState<Record<string, string> | null>(null);
 
@@ -141,7 +141,7 @@ export default function Inventory({ outlet }: { outlet: Outlet }) {
       <div className="page-head">
         <h1>Inventory · {outlet.name}</h1>
         <div className="row-actions">
-          {["stock", "recipes", "movements"].map((t) => (
+          {["stock", "retail", "recipes", "movements"].map((t) => (
             <button
               key={t}
               className={`btn ${tab === t ? "primary" : ""}`}
@@ -242,9 +242,113 @@ export default function Inventory({ outlet }: { outlet: Outlet }) {
         </section>
       )}
 
+      {tab === "retail" && <RetailStock outletId={outlet.id} />}
       {tab === "recipes" && <RecipeEditor stock={stock} />}
       {tab === "movements" && <Movements outletId={outlet.id} />}
     </div>
+  );
+}
+
+// ---------- retail per-unit stock ----------
+
+interface RetailRow {
+  productId: string;
+  name: string;
+  sku: string | null;
+  priceCents: number;
+  consignor: { name: string } | null;
+  onHandQty: number;
+  lowStock: boolean;
+}
+
+function RetailStock({ outletId }: { outletId: string }) {
+  const [rows, setRows] = useState<RetailRow[]>([]);
+
+  const reload = useCallback(
+    () =>
+      api<RetailRow[]>("GET", `/admin/outlets/${outletId}/retail-stock`).then(setRows),
+    [outletId],
+  );
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const move = async (row: RetailRow, kind: "receive" | "adjust" | "wastage") => {
+    const raw = prompt(
+      kind === "receive"
+        ? `Receive how many units of ${row.name}?`
+        : kind === "wastage"
+          ? `Waste how many units of ${row.name}?`
+          : `Adjust ${row.name} by how many units (negative to reduce)?`,
+    );
+    if (!raw) return;
+    const n = parseInt(raw, 10);
+    if (!Number.isFinite(n) || n === 0) return;
+    const reason =
+      kind === "receive" ? undefined : (prompt("Reason?") ?? undefined);
+    if (kind !== "receive" && !reason) return;
+    await api("POST", `/admin/outlets/${outletId}/retail-stock/${kind}`, {
+      productId: row.productId,
+      ...(kind === "adjust" ? { qtyDelta: n } : { qty: Math.abs(n) }),
+      reason,
+    });
+    void reload();
+  };
+
+  return (
+    <section className="panel">
+      <h2>Retail / consignment stock (units)</h2>
+      <p className="dim">
+        Products with “track per-unit stock” enabled. Sales and voids move
+        these automatically; receive deliveries and log wastage here.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>SKU</th>
+            <th>Consignor</th>
+            <th>Price</th>
+            <th>On hand</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.productId}>
+              <td>
+                {row.name} {row.lowStock && <span className="chip warn">LOW</span>}
+              </td>
+              <td className="dim">{row.sku ?? "—"}</td>
+              <td className="dim">{row.consignor?.name ?? "—"}</td>
+              <td className="num dim">{formatCents(row.priceCents, "MYR")}</td>
+              <td className="num">
+                <b>{row.onHandQty}</b>
+              </td>
+              <td>
+                <span className="row-actions">
+                  <button className="btn small" onClick={() => void move(row, "receive")}>
+                    Receive
+                  </button>
+                  <button className="btn small" onClick={() => void move(row, "adjust")}>
+                    Adjust
+                  </button>
+                  <button className="btn small" onClick={() => void move(row, "wastage")}>
+                    Waste
+                  </button>
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {rows.length === 0 && (
+        <p className="dim">
+          No tracked products. Enable “track per-unit stock” in the product
+          editor on the Menu page.
+        </p>
+      )}
+    </section>
   );
 }
 

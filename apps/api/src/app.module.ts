@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AdminModule } from "./admin/admin.module";
 import { AggregatorModule } from "./aggregator/aggregator.module";
 import { AuthModule } from "./auth/auth.module";
+import { ConsignmentModule } from "./consignment/consignment.module";
 import { CrmModule } from "./crm/crm.module";
 import { EInvoiceModule } from "./einvoice/einvoice.module";
 import { HrModule } from "./hr/hr.module";
@@ -19,6 +20,7 @@ import { ShiftsModule } from "./shifts/shifts.module";
     AdminModule,
     AggregatorModule,
     AuthModule,
+    ConsignmentModule,
     CrmModule,
     EInvoiceModule,
     HrModule,

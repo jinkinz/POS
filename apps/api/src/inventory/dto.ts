@@ -131,6 +131,48 @@ export class LowThresholdDto {
   lowThresholdQty?: number;
 }
 
+export class RetailMoveDto {
+  @IsUUID()
+  productId!: string;
+
+  @IsInt()
+  @Min(1)
+  qty!: number;
+
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class RetailAdjustDto {
+  @IsUUID()
+  productId!: string;
+
+  @IsInt()
+  qtyDelta!: number;
+
+  @IsString()
+  @MinLength(3)
+  reason!: string;
+}
+
+export class RetailCountDto {
+  @IsUUID()
+  productId!: string;
+
+  @IsInt()
+  @Min(0)
+  countedQty!: number;
+}
+
+export class RetailStocktakeDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => RetailCountDto)
+  counts!: RetailCountDto[];
+}
+
 export class MovementsQueryDto {
   @IsOptional()
   @IsUUID()

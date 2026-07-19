@@ -50,6 +50,7 @@ export interface ModifierGroup {
 export interface Product {
   id: string;
   name: string;
+  sku?: string | null;
   priceCents: number;
   soldOut: boolean;
   imageUrl: string | null;

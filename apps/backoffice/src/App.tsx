@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Inventory from "./pages/Inventory";
 import Campaigns from "./pages/Campaigns";
+import ConsignmentPage from "./pages/Consignment";
 import EInvoicePage from "./pages/EInvoice";
 import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
@@ -21,6 +22,7 @@ const PAGES = [
   ["campaigns", "🎟 Campaigns"],
   ["menu", "🍜 Menu"],
   ["inventory", "📦 Inventory"],
+  ["consignment", "🏷 Consignment"],
   ["tables", "🪑 Tables & QR"],
   ["devices", "📱 Devices"],
   ["staff", "👥 Staff"],
@@ -104,6 +106,8 @@ export default function App() {
           <MenuPage />
         ) : page === "inventory" ? (
           <Inventory outlet={outlet} />
+        ) : page === "consignment" ? (
+          <ConsignmentPage />
         ) : page === "tables" ? (
           <Tables outlet={outlet} />
         ) : page === "devices" ? (

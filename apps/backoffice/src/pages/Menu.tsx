@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatCents } from "@pos/shared";
 import { api } from "../api";
-import type { Catalog, ModifierGroup, Product } from "../types";
+import type { Catalog, Consignor, ModifierGroup, Product } from "../types";
 
 const fmt = (c: number) => formatCents(c, "MYR");
 
@@ -169,6 +169,16 @@ function ProductDialog({
   const [categoryId, setCategoryId] = useState(product?.categoryId ?? "");
   const [station, setStation] = useState(product?.kitchenStation ?? "");
   const [active, setActive] = useState(product?.active ?? true);
+  const [sku, setSku] = useState(product?.sku ?? "");
+  const [trackStock, setTrackStock] = useState(product?.trackStock ?? false);
+  const [consignorId, setConsignorId] = useState(product?.consignorId ?? "");
+  const [consignors, setConsignors] = useState<Consignor[]>([]);
+
+  useEffect(() => {
+    void api<Consignor[]>("GET", "/admin/consignment/consignors")
+      .then((list) => setConsignors(list.filter((c) => c.active)))
+      .catch(() => {});
+  }, []);
   const [groups, setGroups] = useState<Set<string>>(
     new Set(product?.modifierGroupIds ?? []),
   );
@@ -185,14 +195,26 @@ function ProductDialog({
         basePriceCents: cents,
         categoryId: categoryId || undefined,
         kitchenStation: station || undefined,
+        sku: sku || undefined,
       };
       let id: string;
       if (product) {
-        await api("PATCH", `/admin/products/${product.id}`, { ...body, active });
+        await api("PATCH", `/admin/products/${product.id}`, {
+          ...body,
+          active,
+          trackStock,
+          consignorId: consignorId || null,
+        });
         id = product.id;
       } else {
         const created = await api<Product>("POST", "/admin/products", body);
         id = created.id;
+        if (trackStock || consignorId) {
+          await api("PATCH", `/admin/products/${id}`, {
+            trackStock,
+            consignorId: consignorId || null,
+          });
+        }
       }
       const before = new Set(product?.modifierGroupIds ?? []);
       for (const groupId of groups) {
@@ -250,6 +272,31 @@ function ProductDialog({
             onChange={(e) => setStation(e.target.value)}
           />
         </label>
+        <label>
+          SKU / barcode (retail scanning)
+          <input value={sku} onChange={(e) => setSku(e.target.value)} />
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={trackStock}
+            onChange={(e) => setTrackStock(e.target.checked)}
+          />
+          Track per-unit stock (retail/consignment)
+        </label>
+        {consignors.length > 0 && (
+          <label>
+            Consignor
+            <select value={consignorId} onChange={(e) => setConsignorId(e.target.value)}>
+              <option value="">— own product —</option>
+              {consignors.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="check-list">
           <span className="dim">Modifier groups</span>
           {catalog.modifierGroups.map((g) => (

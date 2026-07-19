@@ -56,6 +56,7 @@ export class MenuService {
         products: c.products.map((p) => ({
           id: p.id,
           name: p.name,
+          sku: p.sku,
           priceCents: p.basePriceCents,
           soldOut: p.soldOut,
           imageUrl: p.imageUrl,

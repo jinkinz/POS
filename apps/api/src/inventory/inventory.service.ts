@@ -23,9 +23,10 @@ export class InventoryService {
   // ---------- sale hooks (called inside the order transaction) ----------
 
   /**
-   * Applies recipe consumption for sold items. sign=-1 deducts (sale),
-   * sign=+1 restores (void). Items without recipes are ignored. Stock may
-   * go negative on purpose: it records reality and surfaces variance.
+   * Applies stock consumption for sold items: recipe ingredients for F&B
+   * products AND per-unit stock for trackStock (retail) products. sign=-1
+   * deducts (sale), sign=+1 restores (void). Stock may go negative on
+   * purpose: it records reality and surfaces variance.
    */
   async applyForItems(
     tx: Tx,
@@ -38,12 +39,46 @@ export class InventoryService {
     const productIds = [...new Set(items.map((i) => i.productId))];
     const modifierIds = [...new Set(items.flatMap((i) => i.modifierIds))];
 
-    const [recipes, modRecipes] = await Promise.all([
+    const [recipes, modRecipes, trackedProducts] = await Promise.all([
       tx.recipeItem.findMany({ where: { productId: { in: productIds } } }),
       modifierIds.length > 0
         ? tx.modifierRecipeItem.findMany({ where: { modifierId: { in: modifierIds } } })
         : Promise.resolve([]),
+      tx.product.findMany({
+        where: { id: { in: productIds }, trackStock: true },
+        select: { id: true },
+      }),
     ]);
+
+    // Retail: whole units per product.
+    const tracked = new Set(trackedProducts.map((p) => p.id));
+    const unitTotals = new Map<string, number>();
+    for (const item of items) {
+      if (tracked.has(item.productId)) {
+        unitTotals.set(
+          item.productId,
+          (unitTotals.get(item.productId) ?? 0) + item.quantity,
+        );
+      }
+    }
+    for (const [productId, qty] of unitTotals) {
+      const delta = qty * sign;
+      await tx.productStock.upsert({
+        where: { outletId_productId: { outletId, productId } },
+        create: { outletId, productId, onHandQty: delta },
+        update: { onHandQty: { increment: delta } },
+      });
+      await tx.productStockMovement.create({
+        data: {
+          outletId,
+          productId,
+          type: sign === -1 ? StockMovementType.SALE_DEDUCT : StockMovementType.VOID_RETURN,
+          qtyDelta: delta,
+          refId,
+        },
+      });
+    }
+
     if (recipes.length === 0 && modRecipes.length === 0) return;
 
     const byProduct = new Map<string, typeof recipes>();
@@ -322,6 +357,114 @@ export class InventoryService {
       take: 200,
       include: { ingredient: { select: { name: true, unit: true } } },
     });
+  }
+
+  // ---------- retail (per-unit product stock) ----------
+
+  async retailStock(companyId: string, outletId: string) {
+    await this.mustOwnOutlet(companyId, outletId);
+    const products = await this.prisma.product.findMany({
+      where: { companyId, trackStock: true, active: true },
+      orderBy: { name: "asc" },
+      include: {
+        stockLevels: { where: { outletId } },
+        consignor: { select: { id: true, name: true } },
+      },
+    });
+    return products.map((p) => {
+      const level = p.stockLevels[0];
+      const onHand = level?.onHandQty ?? 0;
+      const low = level?.lowThresholdQty;
+      return {
+        productId: p.id,
+        name: p.name,
+        sku: p.sku,
+        priceCents: p.basePriceCents,
+        consignor: p.consignor,
+        onHandQty: onHand,
+        lowThresholdQty: low ?? null,
+        lowStock: low != null && onHand <= low,
+      };
+    });
+  }
+
+  async retailMove(
+    companyId: string,
+    outletId: string,
+    staffId: string | undefined,
+    op: {
+      productId: string;
+      qtyDelta: number;
+      type: StockMovementType;
+      reason?: string;
+    },
+  ) {
+    await this.mustOwnOutlet(companyId, outletId);
+    const product = await this.prisma.product.findFirst({
+      where: { id: op.productId, companyId, trackStock: true },
+    });
+    if (!product) throw new NotFoundException("Tracked product not found");
+    if (op.qtyDelta === 0) throw new BadRequestException("qtyDelta must be non-zero");
+    const [level] = await this.prisma.$transaction([
+      this.prisma.productStock.upsert({
+        where: { outletId_productId: { outletId, productId: op.productId } },
+        create: { outletId, productId: op.productId, onHandQty: op.qtyDelta },
+        update: { onHandQty: { increment: op.qtyDelta } },
+      }),
+      this.prisma.productStockMovement.create({
+        data: {
+          outletId,
+          productId: op.productId,
+          type: op.type,
+          qtyDelta: op.qtyDelta,
+          reason: op.reason,
+          staffId,
+        },
+      }),
+    ]);
+    return { productId: op.productId, onHandQty: level.onHandQty };
+  }
+
+  /** Set counted units; the delta is ledgered as STOCKTAKE variance. */
+  async retailStocktake(
+    companyId: string,
+    outletId: string,
+    staffId: string | undefined,
+    counts: { productId: string; countedQty: number }[],
+  ) {
+    await this.mustOwnOutlet(companyId, outletId);
+    const results: { productId: string; varianceQty: number }[] = [];
+    await this.prisma.$transaction(async (tx) => {
+      for (const count of counts) {
+        const product = await tx.product.findFirst({
+          where: { id: count.productId, companyId, trackStock: true },
+        });
+        if (!product) throw new NotFoundException(`Product ${count.productId} not tracked`);
+        const level = await tx.productStock.findUnique({
+          where: { outletId_productId: { outletId, productId: count.productId } },
+        });
+        const variance = count.countedQty - (level?.onHandQty ?? 0);
+        await tx.productStock.upsert({
+          where: { outletId_productId: { outletId, productId: count.productId } },
+          create: { outletId, productId: count.productId, onHandQty: count.countedQty },
+          update: { onHandQty: count.countedQty },
+        });
+        if (variance !== 0) {
+          await tx.productStockMovement.create({
+            data: {
+              outletId,
+              productId: count.productId,
+              type: StockMovementType.STOCKTAKE,
+              qtyDelta: variance,
+              reason: "stocktake variance",
+              staffId,
+            },
+          });
+        }
+        results.push({ productId: count.productId, varianceQty: variance });
+      }
+    });
+    return { results };
   }
 
   // ---------- internals ----------

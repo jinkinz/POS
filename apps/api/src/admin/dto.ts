@@ -9,6 +9,7 @@ import {
   Max,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { CashRounding, SalaryType, StaffRole } from "@pos/db";
 
@@ -97,6 +98,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   soldOut?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  trackStock?: boolean;
+
+  // null clears the consignor assignment
+  @IsOptional()
+  @ValidateIf((o) => o.consignorId !== null)
+  @IsUUID()
+  consignorId?: string | null;
 }
 
 export class CreateModifierGroupDto {

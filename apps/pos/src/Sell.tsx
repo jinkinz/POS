@@ -45,6 +45,7 @@ export default function SellScreen({
   const [orderType, setOrderType] = useState<OrderType>("DINE_IN");
   const [tableId, setTableId] = useState<string | undefined>();
   const [modifierProduct, setModifierProduct] = useState<Product | null>(null);
+  const [search, setSearch] = useState("");
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [showOrders, setShowOrders] = useState(false);
   const [showTables, setShowTables] = useState(false);
@@ -152,6 +153,32 @@ export default function SellScreen({
   }, [outletId, session.token, refreshPending, say]);
 
   const category = menu?.categories.find((c) => c.id === catId) ?? null;
+  const allProducts = useMemo(
+    () => (menu ? menu.categories.flatMap((c) => c.products) : []),
+    [menu],
+  );
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return null;
+    return allProducts
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.sku ?? "").toLowerCase() === q,
+      )
+      .slice(0, 30);
+  }, [search, allProducts]);
+
+  /** Barcode scanners type the code and send Enter — exact SKU adds instantly. */
+  const scanSubmit = () => {
+    const q = search.trim().toLowerCase();
+    if (!q) return;
+    const exact = allProducts.find((p) => (p.sku ?? "").toLowerCase() === q);
+    if (exact && !exact.soldOut) {
+      addLine(exact, [], 1, "");
+      setSearch("");
+    }
+  };
 
   const addLine = (
     product: Product,
@@ -267,6 +294,15 @@ export default function SellScreen({
       <div className="pos-body">
         <div className="menu-side">
           <nav className="cats">
+            <input
+              className="scan-box"
+              placeholder="🔍 Search / scan barcode"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") scanSubmit();
+              }}
+            />
             {menu.categories.map((c) => (
               <button
                 key={c.id}
@@ -278,7 +314,7 @@ export default function SellScreen({
             ))}
           </nav>
           <div className="grid">
-            {category?.products.map((p) => (
+            {(searchResults ?? category?.products ?? []).map((p) => (
               <button
                 key={p.id}
                 className={`tile ${p.soldOut ? "soldout" : ""}`}
