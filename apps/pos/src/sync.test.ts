@@ -16,6 +16,7 @@ function localOrder(id: string): LocalOrder {
     guestCount: 1,
     notes: null,
     subtotalCents: 1000,
+    discountCents: 0,
     serviceChargeCents: 0,
     taxCents: 0,
     roundingCents: 0,

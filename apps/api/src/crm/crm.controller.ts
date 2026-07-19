@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -23,6 +24,13 @@ import {
 import { StaffRole } from "@pos/db";
 import { AuthUser, CurrentUser, Roles } from "../auth/decorators";
 import { LoyaltyService } from "./loyalty.service";
+import {
+  ApplyVoucherDto,
+  CreateCampaignDto,
+  IssueVoucherDto,
+  UpdateCampaignDto,
+} from "./vouchers.dto";
+import { VouchersService } from "./vouchers.service";
 
 class CreateMemberDto {
   @Matches(/^\+?[\d\s-]{7,20}$/, { message: "Invalid phone number" })
@@ -83,7 +91,10 @@ const SELLING_ROLES = [
 
 @Controller()
 export class CrmController {
-  constructor(private readonly loyalty: LoyaltyService) {}
+  constructor(
+    private readonly loyalty: LoyaltyService,
+    private readonly vouchers: VouchersService,
+  ) {}
 
   // ---- POS-facing ----
 
@@ -126,7 +137,64 @@ export class CrmController {
     return this.loyalty.redeem(user.companyId, orderId, dto.points);
   }
 
+  @Roles(...SELLING_ROLES)
+  @Get("members/:id/vouchers")
+  memberVouchers(@CurrentUser() user: AuthUser, @Param("id", ParseUUIDPipe) id: string) {
+    return this.vouchers.memberVouchers(user.companyId, id);
+  }
+
+  @Roles(...SELLING_ROLES)
+  @Post("orders/:id/voucher")
+  applyVoucher(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) orderId: string,
+    @Body() dto: ApplyVoucherDto,
+  ) {
+    return this.vouchers.apply(user.companyId, orderId, dto.code);
+  }
+
+  @Roles(...SELLING_ROLES)
+  @Delete("orders/:id/voucher")
+  removeVoucher(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) orderId: string,
+  ) {
+    return this.vouchers.remove(user.companyId, orderId);
+  }
+
   // ---- back office ----
+
+  @Roles(StaffRole.OWNER, StaffRole.MANAGER)
+  @Post("admin/campaigns")
+  createCampaign(@CurrentUser() user: AuthUser, @Body() dto: CreateCampaignDto) {
+    return this.vouchers.createCampaign(user.companyId, dto);
+  }
+
+  @Roles(StaffRole.OWNER, StaffRole.MANAGER)
+  @Get("admin/campaigns")
+  listCampaigns(@CurrentUser() user: AuthUser) {
+    return this.vouchers.listCampaigns(user.companyId);
+  }
+
+  @Roles(StaffRole.OWNER, StaffRole.MANAGER)
+  @Patch("admin/campaigns/:id")
+  updateCampaign(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCampaignDto,
+  ) {
+    return this.vouchers.updateCampaign(user.companyId, id, dto);
+  }
+
+  @Roles(StaffRole.OWNER, StaffRole.MANAGER)
+  @Post("admin/campaigns/:id/issue")
+  issueVoucher(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: IssueVoucherDto,
+  ) {
+    return this.vouchers.issueVoucher(user.companyId, id, dto.memberId);
+  }
 
   @Roles(StaffRole.OWNER, StaffRole.MANAGER)
   @Get("admin/members")

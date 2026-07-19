@@ -3,6 +3,7 @@ import { api, getToken, setToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Inventory from "./pages/Inventory";
+import Campaigns from "./pages/Campaigns";
 import EInvoicePage from "./pages/EInvoice";
 import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
@@ -15,6 +16,7 @@ const PAGES = [
   ["dashboard", "📊 Dashboard"],
   ["shifts", "💰 Shifts"],
   ["members", "🎁 Members"],
+  ["campaigns", "🎟 Campaigns"],
   ["menu", "🍜 Menu"],
   ["inventory", "📦 Inventory"],
   ["tables", "🪑 Tables & QR"],
@@ -92,6 +94,8 @@ export default function App() {
           <Shifts outlet={outlet} />
         ) : page === "members" ? (
           <Members />
+        ) : page === "campaigns" ? (
+          <Campaigns />
         ) : page === "menu" ? (
           <MenuPage />
         ) : page === "inventory" ? (

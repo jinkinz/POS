@@ -60,6 +60,37 @@ describe("computeOrderTotals — SG (GST 9%, exclusive)", () => {
   });
 });
 
+describe("computeOrderTotals — discounts (pre-tax)", () => {
+  it("RM24 subtotal, RM2.40 off: svc and tax on discounted base", () => {
+    const t = computeOrderTotals(
+      [{ unitPriceCents: 1200, quantity: 2 }],
+      myConfig,
+      240,
+    );
+    expect(t.subtotalCents).toBe(2400);
+    expect(t.discountCents).toBe(240);
+    expect(t.serviceChargeCents).toBe(216); // 10% of 21.60
+    expect(t.taxCents).toBe(143); // 6% of 23.76 = 1.4256 -> 143
+    expect(t.totalCents).toBe(2519); // 21.60 + 2.16 + 1.43
+  });
+
+  it("discount clamps to subtotal and never below zero", () => {
+    const big = computeOrderTotals(
+      [{ unitPriceCents: 500, quantity: 1 }],
+      myConfig,
+      99999,
+    );
+    expect(big.discountCents).toBe(500);
+    expect(big.totalCents).toBe(0);
+    const neg = computeOrderTotals(
+      [{ unitPriceCents: 500, quantity: 1 }],
+      myConfig,
+      -100,
+    );
+    expect(neg.discountCents).toBe(0);
+  });
+});
+
 describe("computeOrderTotals — tax inclusive", () => {
   it("extracts GST portion without changing the total", () => {
     const t = computeOrderTotals([{ unitPriceCents: 1090, quantity: 1 }], {

@@ -44,6 +44,8 @@ export interface OrderLineInput {
 
 export interface OrderTotals {
   subtotalCents: number;
+  /** Discount actually applied (input clamped to [0, subtotal]). */
+  discountCents: number;
   serviceChargeCents: number;
   taxCents: number;
   totalCents: number;

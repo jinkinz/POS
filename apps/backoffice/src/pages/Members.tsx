@@ -53,6 +53,35 @@ export default function Members() {
     return () => clearTimeout(t);
   }, [reload]);
 
+  const issueVoucher = async (m: Member) => {
+    const campaigns = await api<
+      { id: string; name: string; kind: string; active: boolean }[]
+    >("GET", "/admin/campaigns");
+    const issuable = campaigns.filter((c) => c.kind === "ISSUED" && c.active);
+    if (issuable.length === 0) {
+      alert("No active personal-voucher campaigns. Create one on the Campaigns page.");
+      return;
+    }
+    const pick = prompt(
+      "Issue from which campaign?\n" +
+        issuable.map((c, i) => `${i + 1}. ${c.name}`).join("\n"),
+      "1",
+    );
+    if (!pick) return;
+    const campaign = issuable[parseInt(pick, 10) - 1];
+    if (!campaign) return;
+    try {
+      const v = await api<{ code: string }>(
+        "POST",
+        `/admin/campaigns/${campaign.id}/issue`,
+        { memberId: m.id },
+      );
+      alert(`Voucher issued to ${m.name ?? m.phone}: ${v.code}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
   const adjust = async (m: Member) => {
     const raw = prompt(`Adjust points for ${m.name ?? m.phone} (e.g. 100 or -50)?`);
     if (!raw) return;
@@ -118,6 +147,9 @@ export default function Members() {
                     </button>
                     <button className="btn small" onClick={() => void adjust(m)}>
                       ± Points
+                    </button>
+                    <button className="btn small" onClick={() => void issueVoucher(m)}>
+                      🎟
                     </button>
                     <button
                       className="btn small"

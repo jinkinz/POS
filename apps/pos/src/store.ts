@@ -74,6 +74,7 @@ export async function createOrder(opts: {
     status: "OPEN",
     tableId: opts.tableId ?? null,
     memberId: opts.memberId ?? null,
+    discountCents: 0,
     guestCount: opts.guestCount ?? 1,
     notes: null,
     subtotalCents: totals.subtotalCents,
@@ -165,8 +166,13 @@ export async function addItemsToOrder(
       quantity: i.quantity,
       modifierDeltaCents: i.modifiersJson.reduce((s, m) => s + m.priceDeltaCents, 0),
     }));
-  const totals = computeOrderTotals(activeLines, totalsConfig(outlet));
+  const totals = computeOrderTotals(
+    activeLines,
+    totalsConfig(outlet),
+    order.discountCents ?? 0,
+  );
   merged.subtotalCents = totals.subtotalCents;
+  merged.discountCents = totals.discountCents;
   merged.serviceChargeCents = totals.serviceChargeCents;
   merged.taxCents = totals.taxCents;
   merged.totalCents = totals.totalCents;

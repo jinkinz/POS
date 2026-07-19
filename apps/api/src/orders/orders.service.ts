@@ -499,11 +499,16 @@ export class OrdersService {
           i.modifiersJson as { priceDeltaCents: number }[]
         ).reduce((s, m) => s + m.priceDeltaCents, 0),
       }));
-    const totals = computeOrderTotals(lines, totalsConfig(order.outlet));
+    const totals = computeOrderTotals(
+      lines,
+      totalsConfig(order.outlet),
+      order.discountCents,
+    );
     return tx.order.update({
       where: { id: orderId },
       data: {
         subtotalCents: totals.subtotalCents,
+        discountCents: totals.discountCents,
         serviceChargeCents: totals.serviceChargeCents,
         taxCents: totals.taxCents,
         totalCents: totals.totalCents,

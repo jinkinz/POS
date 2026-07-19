@@ -22,31 +22,35 @@ export function lineTotalCents(line: OrderLineInput): number {
 
 /**
  * Bill total pipeline shared by server and offline POS:
- * items -> subtotal -> service charge -> tax -> total.
+ * items -> subtotal -> discount -> service charge -> tax -> total.
+ * Discounts apply before service charge and tax (standard MY/SG practice).
  * Cash rounding is intentionally NOT applied here — it happens at tender
  * time via applyCashRounding, and only for cash.
  */
 export function computeOrderTotals(
   lines: OrderLineInput[],
   config: TotalsConfig,
+  discountCents = 0,
 ): OrderTotals {
   const subtotalCents = lines.reduce((sum, l) => sum + lineTotalCents(l), 0);
-  const serviceChargeCents = applyBps(subtotalCents, config.serviceChargeBps);
+  const discount = Math.min(Math.max(0, Math.floor(discountCents)), subtotalCents);
+  const discountedCents = subtotalCents - discount;
+  const serviceChargeCents = applyBps(discountedCents, config.serviceChargeBps);
 
   let taxCents: number;
   let totalCents: number;
   const taxBase =
-    subtotalCents + (config.serviceChargeTaxable ? serviceChargeCents : 0);
+    discountedCents + (config.serviceChargeTaxable ? serviceChargeCents : 0);
 
   if (config.taxInclusive) {
     taxCents = inclusiveTaxPortion(taxBase, config.taxBps);
-    totalCents = subtotalCents + serviceChargeCents;
+    totalCents = discountedCents + serviceChargeCents;
   } else {
     taxCents = applyBps(taxBase, config.taxBps);
-    totalCents = subtotalCents + serviceChargeCents + taxCents;
+    totalCents = discountedCents + serviceChargeCents + taxCents;
   }
 
-  return { subtotalCents, serviceChargeCents, taxCents, totalCents };
+  return { subtotalCents, discountCents: discount, serviceChargeCents, taxCents, totalCents };
 }
 
 /**

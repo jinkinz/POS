@@ -152,6 +152,10 @@ export default function TenderDialog({
           ))}
         </div>
 
+        {online && method !== "QR_WALLET" && capturedCents(order) === 0 && (
+          <VoucherRow order={order} token={token} fmt={fmt} />
+        )}
+
         {order.memberId && online && method !== "QR_WALLET" && (
           <RedeemPane
             orderId={orderId}
@@ -219,6 +223,73 @@ export default function TenderDialog({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Apply / remove a voucher or promo code before payment starts. */
+function VoucherRow({
+  order,
+  token,
+  fmt,
+}: {
+  order: { id: string; discountCents: number; voucherCode?: string | null };
+  token: string;
+  fmt: (c: number) => string;
+}) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const run = async (method: "POST" | "DELETE", body?: unknown) => {
+    setBusy(true);
+    setError("");
+    try {
+      const updated = await api<Order>(
+        method,
+        `/orders/${order.id}/voucher`,
+        body,
+        token,
+      );
+      await applyServerOrder(updated);
+      setCode("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Voucher failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (order.voucherCode) {
+    return (
+      <div className="redeem-row">
+        <span className="dim-note">
+          🎟 {order.voucherCode} · −{fmt(order.discountCents)}
+        </span>
+        <button className="btn" disabled={busy} onClick={() => void run("DELETE")}>
+          Remove
+        </button>
+        {error && <div className="error">{error}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="redeem-row">
+      <input
+        style={{ flex: 1, minWidth: 140 }}
+        placeholder="Voucher / promo code"
+        value={code}
+        onChange={(e) => setCode(e.target.value.toUpperCase())}
+      />
+      <button
+        className="btn"
+        disabled={busy || code.trim().length < 3}
+        onClick={() => void run("POST", { code: code.trim() })}
+      >
+        Apply
+      </button>
+      {error && <div className="error">{error}</div>}
     </div>
   );
 }

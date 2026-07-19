@@ -256,10 +256,14 @@ model Order {
   notes      String?
 
   subtotalCents      Int @default(0)
+  discountCents      Int @default(0) // voucher discount, applied pre-tax
   serviceChargeCents Int @default(0)
   taxCents           Int @default(0)
   roundingCents      Int @default(0) // MY 5-sen cash rounding adjustment
   totalCents         Int @default(0)
+  voucherId          String? @db.Uuid // personal voucher applied
+  voucherCode        String? // code as entered (promo or personal)
+  appliedCampaignId  String? @db.Uuid
 
   openedAt  DateTime  @default(now())
   closedAt  DateTime?
@@ -515,9 +519,69 @@ model Member {
 
   transactions PointsTransaction[]
   orders       Order[]
+  vouchers     Voucher[]
 
   @@unique([companyId, phone])
   @@index([companyId, name])
+}
+
+// A promotion. CODE = shared promo code usable maxUses times;
+// ISSUED = template for personal one-time vouchers given to members.
+model Campaign {
+  id        String       @id @default(uuid()) @db.Uuid
+  companyId String       @db.Uuid
+  name      String
+  kind      CampaignKind
+  /// Shared promo code (CODE kind), unique per company.
+  code             String?
+  discountType     DiscountType
+  valueCents       Int? // AMOUNT
+  valueBps         Int? // PERCENT, e.g. 1000 = 10%
+  maxDiscountCents Int?
+  minSpendCents    Int          @default(0)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  maxUses          Int? // CODE kind
+  usedCount        Int          @default(0)
+  active           Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+
+  vouchers Voucher[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+enum CampaignKind {
+  CODE
+  ISSUED
+}
+
+enum DiscountType {
+  AMOUNT
+  PERCENT
+}
+
+// A personal one-time voucher issued from an ISSUED campaign.
+model Voucher {
+  id         String        @id @default(uuid()) @db.Uuid
+  campaignId String        @db.Uuid
+  campaign   Campaign      @relation(fields: [campaignId], references: [id])
+  memberId   String?       @db.Uuid
+  member     Member?       @relation(fields: [memberId], references: [id])
+  code       String        @unique // e.g. V-8FK2QZ
+  status     VoucherStatus @default(ISSUED)
+  orderId    String?       @db.Uuid
+  issuedAt   DateTime      @default(now())
+  redeemedAt DateTime?
+
+  @@index([memberId])
+}
+
+enum VoucherStatus {
+  ISSUED
+  REDEEMED
+  CANCELLED
 }
 
 // Signed ledger — pointsBalance is always the sum of these.

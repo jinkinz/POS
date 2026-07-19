@@ -408,6 +408,12 @@ export default function SellScreen({
             {activeOrder && cart.length === 0 ? (
               <>
                 <Row label="Subtotal" value={fmt(activeOrder.subtotalCents)} />
+                {activeOrder.discountCents > 0 && (
+                  <Row
+                    label={`Voucher ${activeOrder.voucherCode ?? ""}`}
+                    value={`−${fmt(activeOrder.discountCents)}`}
+                  />
+                )}
                 {activeOrder.serviceChargeCents > 0 && (
                   <Row label="Service charge" value={fmt(activeOrder.serviceChargeCents)} />
                 )}

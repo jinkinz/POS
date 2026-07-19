@@ -128,6 +128,8 @@ export interface Order {
   guestCount: number;
   notes: string | null;
   subtotalCents: number;
+  discountCents: number;
+  voucherCode?: string | null;
   serviceChargeCents: number;
   taxCents: number;
   roundingCents: number;
