@@ -1,0 +1,8 @@
+{
+  "receipt": { "type": "tcp", "host": "192.168.1.50", "port": 9100 },
+  "stations": {
+    "kitchen": { "type": "tcp", "host": "192.168.1.51", "port": 9100 },
+    "wok": { "type": "tcp", "host": "192.168.1.51", "port": 9100 },
+    "drinks": { "type": "tcp", "host": "192.168.1.52", "port": 9100 }
+  }
+}

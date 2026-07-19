@@ -475,6 +475,36 @@ enum GatewayPaymentStatus {
   CANCELED
 }
 
+// ---------- Printing ----------
+
+// Structured print jobs; the on-site bridge renders them to ESC/POS.
+model PrintJob {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @db.Uuid
+  outletId  String         @db.Uuid
+  orderId   String?        @db.Uuid
+  type      PrintJobType
+  station   String? // kitchen ticket routing ("wok", "drinks", ...)
+  payload   Json
+  status    PrintJobStatus @default(PENDING)
+  error     String?
+  createdAt DateTime       @default(now())
+  printedAt DateTime?
+
+  @@index([outletId, status, createdAt])
+}
+
+enum PrintJobType {
+  RECEIPT
+  KITCHEN
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTED
+  FAILED
+}
+
 // ---------- Shifts / cash management ----------
 
 model Shift {

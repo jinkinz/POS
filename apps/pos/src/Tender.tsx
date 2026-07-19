@@ -42,15 +42,23 @@ export default function TenderDialog({
 
   // A gateway confirmation (webhook -> socket/poll) completes the order
   // server-side; when the local copy flips, show the confirmation screen.
+  const printReceipt = () =>
+    void api("POST", `/orders/${orderId}/print`, undefined, token).catch(() => {});
+
   if (order.status === "COMPLETED" && changeDue === null && method === "QR_WALLET") {
     return (
       <div className="overlay">
         <div className="sheet tender">
           <h2>Payment received ✅</h2>
           <div className="change-big">{fmt(order.totalCents + order.roundingCents)}</div>
-          <button className="btn primary" onClick={() => onClose(true)}>
-            Done
-          </button>
+          <div className="sheet-actions">
+            <button className="btn" onClick={printReceipt}>
+              🖨 Receipt
+            </button>
+            <button className="btn primary" onClick={() => onClose(true)}>
+              Done
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -62,9 +70,14 @@ export default function TenderDialog({
         <div className="sheet tender">
           <h2>Change</h2>
           <div className="change-big">{fmt(changeDue)}</div>
-          <button className="btn primary" onClick={() => onClose(true)}>
-            Done
-          </button>
+          <div className="sheet-actions">
+            <button className="btn" onClick={printReceipt}>
+              🖨 Receipt
+            </button>
+            <button className="btn primary" onClick={() => onClose(true)}>
+              Done
+            </button>
+          </div>
         </div>
       </div>
     );

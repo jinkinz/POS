@@ -14,6 +14,7 @@ import {
 import { OrderStatus, PaymentMethod, PaymentStatus, Prisma } from "@pos/db";
 import { AuthUser } from "../auth/decorators";
 import { InventoryService } from "../inventory/inventory.service";
+import { PrintingService } from "../printing/printing.service";
 import { PrismaService } from "../prisma.service";
 import { RealtimeGateway } from "../realtime/realtime.gateway";
 import {
@@ -77,6 +78,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
     private readonly inventory: InventoryService,
+    private readonly printing: PrintingService,
   ) {}
 
   // ---------- queries ----------
@@ -186,10 +188,13 @@ export class OrdersService {
       });
     });
     this.realtime.emitToOutlet(order.outletId, "order.created", order);
+    // Kitchen tickets are printer fallback/companion to the KDS.
+    void this.printing.kitchenJobs(order).catch(() => {});
     return order;
   }
 
   async addItems(orderId: string, dto: AddItemsDto, companyId: string) {
+    let freshIds: string[] = [];
     const order = await this.prisma.$transaction(async (tx) => {
       const order = await this.getOpenOrder(tx, orderId, companyId);
       if (order.payments.some((p) => p.status === PaymentStatus.CAPTURED)) {
@@ -199,6 +204,7 @@ export class OrdersService {
       // Idempotent on item id: skip rows already applied by a previous sync push.
       const existingIds = new Set(order.items.map((i) => i.id));
       const fresh = resolved.filter((r) => !existingIds.has(r.id));
+      freshIds = fresh.map((r) => r.id);
       if (fresh.length > 0) {
         await tx.orderItem.createMany({
           data: fresh.map((r) => ({
@@ -222,6 +228,9 @@ export class OrdersService {
       return this.recomputeTotals(tx, orderId);
     });
     this.realtime.emitToOutlet(order.outletId, "order.updated", order);
+    if (freshIds.length > 0) {
+      void this.printing.kitchenJobs(order, freshIds).catch(() => {});
+    }
     return order;
   }
 
