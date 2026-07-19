@@ -11,7 +11,8 @@ import { AppModule } from "./app.module";
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    // trustProxy: rate limiting and logs see real client IPs behind nginx.
+    new FastifyAdapter({ trustProxy: true }),
   );
   // Note: the Nest Fastify adapter already parses JSON and
   // application/x-www-form-urlencoded bodies (gateway webhooks use the latter).

@@ -1,0 +1,53 @@
+# Full stack: Postgres + API + the four web apps.
+#   JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+# POS :8081 · KDS :8082 · QR :8083 · Back office :8084 · API :3000
+# The on-site print bridge runs outside compose (see apps/print-bridge).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: pos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/pos?schema=public
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (e.g. openssl rand -hex 32)}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:3000}
+      # Enable real integrations by exporting these before `docker compose up`:
+      HITPAY_API_KEY: ${HITPAY_API_KEY:-}
+      HITPAY_SALT: ${HITPAY_SALT:-}
+      MYINVOIS_CLIENT_ID: ${MYINVOIS_CLIENT_ID:-}
+      MYINVOIS_CLIENT_SECRET: ${MYINVOIS_CLIENT_SECRET:-}
+      MOCK_GATEWAY_ENABLED: ${MOCK_GATEWAY_ENABLED:-false}
+      MOCK_EINVOICE_ENABLED: ${MOCK_EINVOICE_ENABLED:-false}
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.web
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+      - "8083:8083"
+      - "8084:8084"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

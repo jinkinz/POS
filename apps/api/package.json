@@ -15,15 +15,16 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/platform-fastify": "^11.0.0",
     "@nestjs/platform-socket.io": "^11.0.0",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.0.0",
-    "socket.io": "^4.8.0",
+    "@pos/db": "workspace:*",
+    "@pos/shared": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.0",
-    "@pos/db": "workspace:*",
-    "@pos/shared": "workspace:*",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

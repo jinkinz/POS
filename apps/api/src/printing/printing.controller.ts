@@ -8,7 +8,9 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { IsBoolean, IsOptional, IsString, MinLength } from "class-validator";
+import { Throttle } from "@nestjs/throttler";
 import { StaffRole } from "@pos/db";
+import { AUTH_THROTTLE } from "../auth/auth.controller";
 import { AuthUser, CurrentUser, Public, Roles } from "../auth/decorators";
 import { BridgeGuard, BridgeSession, CurrentBridge } from "./bridge.guard";
 import { PrintingService } from "./printing.service";
@@ -46,6 +48,7 @@ export class PrintingController {
   // ---- bridge side ----
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post("bridge/session")
   bridgeSession(@Body() dto: BridgeSessionDto) {
     return this.printing.bridgeSession(dto.deviceToken);

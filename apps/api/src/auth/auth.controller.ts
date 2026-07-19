@@ -15,6 +15,7 @@ import {
   Matches,
   MinLength,
 } from "class-validator";
+import { Throttle } from "@nestjs/throttler";
 import { DeviceKind, StaffRole } from "@pos/db";
 import { AuthService } from "./auth.service";
 import { AuthUser, CurrentUser, Public, Roles } from "./decorators";
@@ -71,17 +72,26 @@ class CreateStaffDto {
   pin?: string;
 }
 
+export const AUTH_THROTTLE = {
+  default: {
+    limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 30),
+    ttl: 60_000,
+  },
+};
+
 @Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post("auth/login")
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto.email, dto.password);
   }
 
   @Public()
+  @Throttle(AUTH_THROTTLE)
   @Post("auth/pin-login")
   pinLogin(
     @Headers("x-device-token") deviceToken: string | undefined,

@@ -1,5 +1,7 @@
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { Public } from "../auth/decorators";
+import { AUTH_THROTTLE } from "../auth/auth.controller";
 import { QrOrderDto, QrSessionDto } from "./dto";
 import { CurrentGuest, GuestSession, QrGuard } from "./qr.guard";
 import { QrService } from "./qr.service";
@@ -11,6 +13,7 @@ import { QrService } from "./qr.service";
 export class QrController {
   constructor(private readonly qr: QrService) {}
 
+  @Throttle(AUTH_THROTTLE)
   @Post("session")
   createSession(@Body() dto: QrSessionDto) {
     return this.qr.createSession(dto.qrToken);

@@ -8,6 +8,9 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export E2E_BASE="${E2E_BASE:-http://localhost:3000/api}"
 export E2E_ART_DIR="${E2E_ART_DIR:-/tmp/pos-e2e}"
+# Suites hammer credential endpoints far faster than any human would.
+export THROTTLE_AUTH_LIMIT="${THROTTLE_AUTH_LIMIT:-2000}"
+export THROTTLE_GLOBAL_LIMIT="${THROTTLE_GLOBAL_LIMIT:-20000}"
 API_ORIGIN="${E2E_BASE%/api}"
 
 mkdir -p "$E2E_ART_DIR"

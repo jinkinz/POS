@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+**/.next
+.git
+.github
+packages/db/.devdb
+e2e
+*.log
+.env
+**/.env

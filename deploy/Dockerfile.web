@@ -1,0 +1,23 @@
+# All four web apps behind one nginx. Build from the repo root:
+#   docker build -f deploy/Dockerfile.web -t pos-web .
+# Ports: 8081 POS, 8082 KDS, 8083 QR ordering, 8084 back office.
+# Each server proxies /api and /socket.io to the `api` host (compose service).
+FROM node:22-slim AS build
+
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile \
+  && pnpm --filter @pos/shared build \
+  && pnpm --filter @pos/pos build \
+  && pnpm --filter @pos/kds build \
+  && pnpm --filter @pos/qr build \
+  && pnpm --filter @pos/backoffice build
+
+FROM nginx:1.27-alpine
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/apps/pos/dist /usr/share/nginx/html/pos
+COPY --from=build /app/apps/kds/dist /usr/share/nginx/html/kds
+COPY --from=build /app/apps/qr/dist /usr/share/nginx/html/qr
+COPY --from=build /app/apps/backoffice/dist /usr/share/nginx/html/backoffice
+EXPOSE 8081 8082 8083 8084

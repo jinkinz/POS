@@ -61,3 +61,32 @@ jobs:
           name: e2e-logs
           path: /tmp/pos-e2e/*.log
           if-no-files-found: ignore
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API image
+        run: docker build -f deploy/Dockerfile.api -t pos-api .
+
+      - name: Build web image
+        run: docker build -f deploy/Dockerfile.web -t pos-web .
+
+      - name: Smoke API image (boot against throwaway Postgres)
+        run: |
+          docker network create pos-net
+          docker run -d --network pos-net --name db \
+            -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=pos postgres:16
+          for i in $(seq 1 30); do
+            docker exec db pg_isready -U postgres && break; sleep 1
+          done
+          docker run -d --network pos-net --name api -p 3000:3000 \
+            -e DATABASE_URL=postgresql://postgres:postgres@db:5432/pos \
+            -e JWT_SECRET=ci-smoke-secret pos-api
+          for i in $(seq 1 45); do
+            curl -sf http://localhost:3000/api/health && READY=1 && break; sleep 2
+          done
+          [ "${READY:-0}" = "1" ] || { docker logs api; exit 1; }
+          echo; echo "API image boots and serves health with migrations applied"

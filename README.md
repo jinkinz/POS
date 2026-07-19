@@ -96,10 +96,26 @@ The e2e suites live in `e2e/` (API flows, Python) plus `apps/kds/e2e/` (socket f
 | `MYINVOIS_CLIENT_ID` / `MYINVOIS_CLIENT_SECRET` / `MYINVOIS_SANDBOX` | Enables the real LHDN MyInvois e-invoice adapter |
 | `PUBLIC_API_URL` | Public base URL used in gateway webhook callbacks |
 
+## Deployment (Docker)
+
+The whole stack ships as two images (API + web) plus Postgres:
+
+```bash
+JWT_SECRET=$(openssl rand -hex 32) docker compose up --build
+```
+
+- POS `:8081` · KDS `:8082` · QR ordering `:8083` · Back office `:8084` · API `:3000`
+- The API container applies pending migrations on boot.
+- nginx inside the web image serves each app and proxies `/api` + `/socket.io` to the API, so the same-origin assumption holds; put your TLS terminator (Caddy/Traefik/cloud LB) in front and map one (sub)domain per port.
+- Export `HITPAY_*` / `MYINVOIS_*` before `docker compose up` to enable the real integrations; mock providers are off in production unless `MOCK_*_ENABLED=true`.
+- The **print bridge** runs on-site (shop PC / Raspberry Pi), not in compose — see the walkthrough above.
+- Works as-is on any Docker host (VPS, Fly.io, Railway, etc.); for managed platforms, deploy `deploy/Dockerfile.api` and `deploy/Dockerfile.web` as two services and point `DATABASE_URL` at managed Postgres.
+
 ## Production notes
 
+- Rate limiting is built in: credential endpoints (staff login, PIN, QR/bridge sessions) allow 30 requests/min/IP, everything else 600/min (`THROTTLE_AUTH_LIMIT` / `THROTTLE_GLOBAL_LIMIT` to tune). Real client IPs are honored behind the bundled nginx (`trustProxy`).
 - Apply schema with `npx prisma migrate deploy` (never `db push`) against managed Postgres.
-- Serve the four web apps as static builds (`pnpm -r build` → each app's `dist/`); proxy `/api` and `/socket.io` to the API.
 - Set `NODE_ENV=production` (enforces `JWT_SECRET`, disables mock providers unless explicitly enabled).
 - Payment/aggregator webhooks need `PUBLIC_API_URL` to be reachable from the internet.
+- Schedule Postgres backups (managed-DB snapshots or `pg_dump`).
 - Known gaps before real-money/real-payroll use: MyInvois X.509 document signing, official EPF/SOCSO/EIS bracket tables + PCB, gateway refund flow.
