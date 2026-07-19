@@ -81,6 +81,14 @@ function StaffDialog({ member, onClose }: { member: Staff | null; onClose: () =>
   const [pin, setPin] = useState("");
   const [password, setPassword] = useState("");
   const [active, setActive] = useState(member?.active ?? true);
+  const [salaryType, setSalaryType] = useState(member?.salaryType ?? "");
+  const [salary, setSalary] = useState(
+    member?.salaryType === "MONTHLY" && member.monthlySalaryCents != null
+      ? (member.monthlySalaryCents / 100).toString()
+      : member?.salaryType === "HOURLY" && member.hourlyRateCents != null
+        ? (member.hourlyRateCents / 100).toString()
+        : "",
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -89,12 +97,21 @@ function StaffDialog({ member, onClose }: { member: Staff | null; onClose: () =>
     setError("");
     try {
       if (member) {
+        const cents = Math.round(parseFloat(salary || "0") * 100);
         await api("PATCH", `/admin/staff/${member.id}`, {
           name,
           role,
           active,
           pin: pin || undefined,
           password: password || undefined,
+          ...(salaryType
+            ? {
+                salaryType,
+                ...(salaryType === "MONTHLY"
+                  ? { monthlySalaryCents: cents }
+                  : { hourlyRateCents: cents }),
+              }
+            : {}),
         });
       } else {
         await api("POST", "/staff", {
@@ -154,14 +171,41 @@ function StaffDialog({ member, onClose }: { member: Staff | null; onClose: () =>
           />
         </label>
         {member && (
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={active}
-              onChange={(e) => setActive(e.target.checked)}
-            />
-            Active (can log in)
-          </label>
+          <>
+            <div className="two-col">
+              <label>
+                Salary type
+                <select
+                  value={salaryType}
+                  onChange={(e) => setSalaryType(e.target.value)}
+                >
+                  <option value="">Not set</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="HOURLY">Hourly</option>
+                </select>
+              </label>
+              {salaryType && (
+                <label>
+                  {salaryType === "MONTHLY" ? "Monthly salary (RM)" : "Hourly rate (RM)"}
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={salary}
+                    onChange={(e) => setSalary(e.target.value)}
+                  />
+                </label>
+              )}
+            </div>
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={active}
+                onChange={(e) => setActive(e.target.checked)}
+              />
+              Active (can log in)
+            </label>
+          </>
         )}
         {error && <div className="error">{error}</div>}
         <div className="row-actions">

@@ -102,10 +102,77 @@ model Staff {
   active       Boolean   @default(true)
   createdAt    DateTime  @default(now())
 
-  orders Order[]
-  shifts Shift[]
+  // Payroll setup
+  salaryType         SalaryType?
+  monthlySalaryCents Int?
+  hourlyRateCents    Int?
+
+  orders      Order[]
+  shifts      Shift[]
+  timeEntries TimeEntry[]
 
   @@index([companyId])
+}
+
+enum SalaryType {
+  MONTHLY
+  HOURLY
+}
+
+// ---------- HR: attendance & payroll ----------
+
+model TimeEntry {
+  id       String    @id @default(uuid()) @db.Uuid
+  staffId  String    @db.Uuid
+  staff    Staff     @relation(fields: [staffId], references: [id])
+  outletId String    @db.Uuid
+  clockIn  DateTime
+  clockOut DateTime?
+  /// Set when a manager creates/corrects the entry rather than a clock.
+  manual   Boolean   @default(false)
+
+  @@index([staffId, clockIn])
+  @@index([outletId, clockIn])
+}
+
+model PayrollRun {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyId   String        @db.Uuid
+  month       String // YYYY-MM
+  status      PayrollStatus @default(DRAFT)
+  createdAt   DateTime      @default(now())
+  finalizedAt DateTime?
+
+  items PayrollItem[]
+
+  @@unique([companyId, month])
+}
+
+enum PayrollStatus {
+  DRAFT
+  FINALIZED
+}
+
+model PayrollItem {
+  id      String     @id @default(uuid()) @db.Uuid
+  runId   String     @db.Uuid
+  run     PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  staffId String     @db.Uuid
+  staffName  String // snapshot
+  salaryType SalaryType
+
+  hoursWorked        Decimal? @db.Decimal(8, 2) // hourly staff
+  grossCents         Int
+  epfEmployeeCents   Int
+  epfEmployerCents   Int
+  socsoEmployeeCents Int
+  socsoEmployerCents Int
+  eisEmployeeCents   Int
+  eisEmployerCents   Int
+  pcbCents           Int      @default(0) // needs LHDN tables; 0 for now
+  netCents           Int
+
+  @@unique([runId, staffId])
 }
 
 enum StaffRole {

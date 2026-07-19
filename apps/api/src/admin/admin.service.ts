@@ -200,6 +200,9 @@ export class AdminService {
       active: s.active,
       hasPin: !!s.pinHash,
       hasPassword: !!s.passwordHash,
+      salaryType: s.salaryType,
+      monthlySalaryCents: s.monthlySalaryCents,
+      hourlyRateCents: s.hourlyRateCents,
       createdAt: s.createdAt,
     }));
   }
@@ -212,6 +215,9 @@ export class AdminService {
       name: dto.name,
       role: dto.role,
       active: dto.active,
+      salaryType: dto.salaryType,
+      monthlySalaryCents: dto.monthlySalaryCents,
+      hourlyRateCents: dto.hourlyRateCents,
     };
     if (dto.pin) {
       const others = await this.prisma.staff.findMany({

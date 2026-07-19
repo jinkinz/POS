@@ -10,7 +10,7 @@ import {
   Min,
   MinLength,
 } from "class-validator";
-import { CashRounding, StaffRole } from "@pos/db";
+import { CashRounding, SalaryType, StaffRole } from "@pos/db";
 
 export class CreateCategoryDto {
   @IsString()
@@ -221,6 +221,20 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsOptional()
+  @IsEnum(SalaryType)
+  salaryType?: SalaryType;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  monthlySalaryCents?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  hourlyRateCents?: number;
 
   @IsOptional()
   @Matches(/^\d{4,6}$/, { message: "PIN must be 4-6 digits" })

@@ -12,6 +12,7 @@ import {
   remainingCents,
   totalsConfig,
 } from "./store";
+import ClockDialog from "./Clock";
 import MemberDialog from "./Member";
 import ShiftDialog from "./Shift";
 import { sync } from "./sync";
@@ -51,6 +52,7 @@ export default function SellScreen({
   const [showShift, setShowShift] = useState(false);
   const [member, setMember] = useState<MemberSummary | null>(null);
   const [showMember, setShowMember] = useState(false);
+  const [showClock, setShowClock] = useState(false);
   const [online, setOnline] = useState(navigator.onLine);
   const [pendingOps, setPendingOps] = useState(0);
   const [toast, setToast] = useState("");
@@ -252,6 +254,9 @@ export default function SellScreen({
           </button>
           <button className="btn" disabled={!online} onClick={() => setShowShift(true)}>
             💰
+          </button>
+          <button className="btn" disabled={!online} onClick={() => setShowClock(true)}>
+            🕐
           </button>
           <button className="btn" onClick={onLock}>
             🔒
@@ -568,6 +573,10 @@ export default function SellScreen({
           currency={currency}
           onClose={() => setShowShift(false)}
         />
+      )}
+
+      {showClock && (
+        <ClockDialog session={session} onClose={() => setShowClock(false)} />
       )}
 
       {showMember && (

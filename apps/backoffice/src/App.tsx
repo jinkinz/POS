@@ -7,6 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import EInvoicePage from "./pages/EInvoice";
 import Members from "./pages/Members";
 import MenuPage from "./pages/Menu";
+import Payroll from "./pages/Payroll";
 import SettingsPage from "./pages/Settings";
 import Shifts from "./pages/Shifts";
 import StaffPage from "./pages/Staff";
@@ -23,6 +24,7 @@ const PAGES = [
   ["tables", "🪑 Tables & QR"],
   ["devices", "📱 Devices"],
   ["staff", "👥 Staff"],
+  ["payroll", "🧑‍🍳 Payroll"],
   ["einvoice", "🧾 E-Invoice"],
   ["settings", "⚙️ Settings"],
 ] as const;
@@ -106,6 +108,8 @@ export default function App() {
           <Tables outlet={outlet} />
         ) : page === "devices" ? (
           <Devices outlets={outlets} />
+        ) : page === "payroll" ? (
+          <Payroll />
         ) : page === "einvoice" ? (
           <EInvoicePage outlet={outlet} />
         ) : page === "settings" ? (

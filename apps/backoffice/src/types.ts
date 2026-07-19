@@ -7,6 +7,9 @@ export interface Staff {
   active: boolean;
   hasPin: boolean;
   hasPassword: boolean;
+  salaryType: "MONTHLY" | "HOURLY" | null;
+  monthlySalaryCents: number | null;
+  hourlyRateCents: number | null;
 }
 
 export interface Outlet {
