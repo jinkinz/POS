@@ -12,6 +12,7 @@ import {
 import { StaffRole } from "@pos/db";
 import { AuthUser, CurrentUser, Roles } from "../auth/decorators";
 import { AdminService } from "./admin.service";
+import { AnalyticsService } from "./analytics.service";
 import {
   AttachGroupDto,
   CreateCategoryDto,
@@ -32,7 +33,10 @@ import {
 @Roles(StaffRole.OWNER, StaffRole.MANAGER)
 @Controller("admin")
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly analytics: AnalyticsService,
+  ) {}
 
   // catalog
   @Get("catalog")
@@ -181,6 +185,16 @@ export class AdminController {
   }
 
   // reports
+  @Get("outlets/:id/reports/analytics")
+  analyticsRange(
+    @CurrentUser() user: AuthUser,
+    @Param("id", ParseUUIDPipe) outletId: string,
+    @Query("from") from: string,
+    @Query("to") to: string,
+  ) {
+    return this.analytics.analytics(user.companyId, outletId, from ?? "", to ?? "");
+  }
+
   @Get("outlets/:id/reports/daily")
   dailyReport(
     @CurrentUser() user: AuthUser,

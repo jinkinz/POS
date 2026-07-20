@@ -7,7 +7,7 @@ Full-suite point-of-sale system for food & beverage **and retail/consignment** b
 | **POS terminal** (`apps/pos`) | Offline-first selling: menu grid, barcode/SKU scanning, modifiers, tables, members, vouchers, split tender, cash rounding (MY 5 sen), gateway QR payments, shift open/close with printed Z-report, staff clock in/out |
 | **Kitchen display** (`apps/kds`) | Real-time station tickets with timers, bump/recall, all-day counts |
 | **QR ordering** (`apps/qr`) | Customers scan a table QR, order from their phone, track item status |
-| **Back office** (`apps/backoffice`) | Dashboard & daily reports, shifts, members/campaigns, menu, inventory (ingredients + retail units), consignment settlements, tables & printable QRs, devices, staff, payroll, e-invoicing, settings |
+| **Back office** (`apps/backoffice`) | Dashboard & daily reports, **historical analytics** (revenue trends, weekday/hour patterns, item winners & non-sellers, margins, mixes, period comparisons), shifts, members/campaigns, menu, inventory (ingredients + retail units), consignment settlements, tables & printable QRs, devices, staff, payroll, e-invoicing, settings |
 | **Print bridge** (`apps/print-bridge`) | On-site agent driving ESC/POS receipt & kitchen printers (TCP :9100) |
 | **API** (`apps/api`) | NestJS modular monolith: auth/RBAC, orders, payments (mock + HitPay adapters), realtime socket, inventory & recipes, CRM/loyalty/vouchers, LHDN MyInvois e-invoicing, delivery-aggregator webhooks, HR/payroll, shifts |
 
@@ -38,6 +38,9 @@ cp apps/api/.env.example apps/api/.env
 
 # 3. Seed demo data (a Malaysian kopitiam with menu, tables, staff)
 pnpm --filter @pos/api seed
+
+# Optional: 180 days of synthetic sales so Analytics has history to chart
+pnpm --filter @pos/api demo-history
 
 # 4. Start the API
 pnpm --filter @pos/api dev        # http://localhost:3000/api

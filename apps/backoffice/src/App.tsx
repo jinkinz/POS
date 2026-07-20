@@ -3,6 +3,7 @@ import { api, getToken, setToken } from "./api";
 import Dashboard from "./pages/Dashboard";
 import Devices from "./pages/Devices";
 import Inventory from "./pages/Inventory";
+import AnalyticsPage from "./pages/Analytics";
 import Campaigns from "./pages/Campaigns";
 import ConsignmentPage from "./pages/Consignment";
 import EInvoicePage from "./pages/EInvoice";
@@ -17,6 +18,7 @@ import type { Outlet } from "./types";
 
 const PAGES = [
   ["dashboard", "📊 Dashboard"],
+  ["analytics", "📈 Analytics"],
   ["shifts", "💰 Shifts"],
   ["members", "🎁 Members"],
   ["campaigns", "🎟 Campaigns"],
@@ -96,6 +98,8 @@ export default function App() {
           <p className="dim">Loading…</p>
         ) : page === "dashboard" ? (
           <Dashboard outlet={outlet} />
+        ) : page === "analytics" ? (
+          <AnalyticsPage outlet={outlet} />
         ) : page === "shifts" ? (
           <Shifts outlet={outlet} />
         ) : page === "members" ? (

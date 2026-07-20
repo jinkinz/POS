@@ -72,6 +72,7 @@ run_py() {
 }
 
 run_py test_admin.py
+run_py test_analytics.py
 run_py test_inventory.py
 run_py test_gateway.py
 run_py test_crm.py
